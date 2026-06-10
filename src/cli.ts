@@ -16,10 +16,22 @@ import { parsePlaywrightReport } from './ingest-playwright.js';
 import { parseJunitReport } from './ingest-junit.js';
 import { loadRedactionRules } from './redaction.js';
 import { vaultOrphans, vaultAbsPath } from './vault.js';
-import { isoNow, systemClock } from './clock.js';
+import { isoNow, systemClock, fixedClock, type Clock } from './clock.js';
+import { computeVerdict, loadDecayConfig } from './decay.js';
+import { GitChurnIndex, NullChurnIndex } from './churn.js';
+import { computeHealth, computeStatus, DEFAULT_SLA_HOURS } from './health.js';
 import type { Behavior, Criticality, Evidence } from './types.js';
 
 const HEALTH_OK = { degraded: false } as const;
+
+/** --now is a demo/test affordance (injected clock); production omits it. */
+function clockFrom(values: { now?: string }): Clock {
+  return values.now ? fixedClock(values.now) : systemClock;
+}
+
+function churnFrom(values: { repo?: string }): GitChurnIndex | NullChurnIndex {
+  return values.repo ? new GitChurnIndex(values.repo) : new NullChurnIndex();
+}
 
 function dbPath(values: { db?: string }): string {
   return values.db ?? process.env['CART_DB'] ?? join(process.cwd(), 'ledger.db');
@@ -48,6 +60,8 @@ const USAGE = `cart — Cartographer behavior ledger (Phase 0)
   cart ingest playwright <report.json> [--ref R]
   cart ingest junit <report.xml> [--ref R]     CI results → evidence (redacted, linked, deduped)
   cart vault gc [--apply]                      list orphan blobs; delete only with --apply (receipted)
+  cart verdict <BHV-id> [--repo <dir>]         compute + render the decayed verdict (I2)
+  cart status [--sla hours]                    ingestion health, counts, verdict histogram (I6)
 
   Global: --db <path> (default ./ledger.db or CART_DB), --vault <dir> (default ./vault or CART_VAULT)`;
 
@@ -92,6 +106,73 @@ function cmdIngest(args: string[]): void {
     if (summary.quarantined.length > 0) {
       console.log(`  quarantined (metadata-only, blob NOT stored — I10): ${summary.quarantined.join(', ')}`);
     }
+  } finally {
+    ledger.close();
+  }
+}
+
+function cmdVerdict(args: string[]): void {
+  const { values, positionals } = parseArgs({
+    args,
+    options: {
+      db: { type: 'string' },
+      repo: { type: 'string' },
+      now: { type: 'string' },
+    },
+    allowPositionals: true,
+  });
+  const id = positionals[0];
+  if (!id) fail('usage: cart verdict <BHV-id> [--repo <dir>]');
+  const ledger = new Ledger(dbPath(values));
+  try {
+    const behavior = ledger.getBehavior(id);
+    if (!behavior) fail(`no such behavior: ${id}`);
+    const clock = clockFrom(values);
+    const ctx = { config: loadDecayConfig(), churn: churnFrom(values), clock };
+    const verdict = computeVerdict(behavior, ledger.allRecords('evidence') as Evidence[], ctx);
+    const { health } = computeHealth(ledger, clock);
+    const citations = [behavior.id, ...(verdict.newest_evidence_id ? [verdict.newest_evidence_id] : [])];
+    const claim: Claim = {
+      text: `${behavior.statement}  [${behavior.criticality}]${behavior.confirmed_by ? '' : '  [unconfirmed]'}`,
+      citations,
+      verdict,
+    };
+    console.log(renderClaims([claim], health));
+  } finally {
+    ledger.close();
+  }
+}
+
+function cmdStatus(args: string[]): void {
+  const { values } = parseArgs({
+    args,
+    options: {
+      db: { type: 'string' },
+      repo: { type: 'string' },
+      now: { type: 'string' },
+      sla: { type: 'string' },
+    },
+  });
+  const ledger = new Ledger(dbPath(values));
+  try {
+    const clock = clockFrom(values);
+    const ctx = { config: loadDecayConfig(), churn: churnFrom(values), clock };
+    const sla = values.sla ? Number(values.sla) : DEFAULT_SLA_HOURS;
+    const report = computeStatus(ledger, ctx, sla);
+
+    const lines: string[] = [];
+    lines.push(`cart status — ${isoNow(clock)}`);
+    lines.push(report.health.degraded ? `health: DEGRADED — ${report.health.reason}` : 'health: OK');
+    lines.push('ingestors:');
+    if (report.ingestors.length === 0) lines.push('  (none have run yet)');
+    for (const i of report.ingestors) {
+      lines.push(`  ${i.ingestor}  last success ${i.lastSuccess}  ${i.withinSla ? 'OK' : `STALE (${Math.floor(i.staleHours)}h > ${sla}h SLA)`}`);
+    }
+    const c = report.counts;
+    lines.push(`records: ${c.behaviors} behaviors (${c.confirmed} confirmed) · ${c.evidence} evidence (${c.quarantined} quarantined) · ${c.questionsOpen} open questions · ${c.receipts} receipts`);
+    const h = report.verdictHistogram;
+    lines.push(`verdicts: VERIFIED ${h.VERIFIED} · STALE ${h.STALE} · ASSERTED ${h.ASSERTED} · UNKNOWN ${h.UNKNOWN} · VIOLATED ${h.VIOLATED}`);
+    console.log(lines.join('\n'));
   } finally {
     ledger.close();
   }
@@ -226,7 +307,8 @@ function cmdBehaviorList(args: string[]): void {
       text: `${b.statement}  [${b.criticality}] (${b.area})${b.confirmed_by ? '' : '  [unconfirmed]'}`,
       citations: [b.id],
     }));
-    console.log(renderClaims(claims, HEALTH_OK));
+    const { health } = computeHealth(ledger, systemClock);
+    console.log(renderClaims(claims, health));
   } finally {
     ledger.close();
   }
@@ -316,6 +398,10 @@ export function main(argv: string[]): void {
       case 'vault':
         if (sub === 'gc') return cmdVaultGc(rest);
         return fail(`unknown vault subcommand "${sub ?? ''}"\n\n${USAGE}`);
+      case 'verdict':
+        return cmdVerdict(argv.slice(1));
+      case 'status':
+        return cmdStatus(argv.slice(1));
       case undefined:
       case 'help':
       case '--help':

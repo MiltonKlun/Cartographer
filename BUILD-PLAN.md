@@ -42,11 +42,11 @@ Goal: real CI runs become evidence.
 **Demo:** ingest a real Playwright report twice; EV records linked once, no dupes, secrets scrubbed. ✅ recorded in `docs/demos/phase-1.md` (2026-06-10; 66 tests green).
 
 ## Phase 2 — Decay engine + health (PR 3)
-- [ ] CG-2.1 Verdict computation per SPEC §4 (hard VIOLATED rule first); only constructor of verdicts (I2).
-- [ ] CG-2.2 `ingest:diff` churn index from `git log --numstat`.
-- [ ] CG-2.3 `cart status` + degraded-health banner injection at renderer level (I6).
-- [ ] CG-2.4 Table-driven decay tests with injected clock (time decay, churn decay, link-confidence weights, thresholds).
-**Demo:** simulate 30 days + 600 churned lines; watch VERIFIED → STALE → UNKNOWN with correct numbers.
+- [x] CG-2.1 Verdict computation per SPEC §4 (hard VIOLATED rule first); only constructor of verdicts (I2).
+- [x] CG-2.2 `ingest:diff` churn index from `git log --numstat`.
+- [x] CG-2.3 `cart status` + degraded-health banner injection at renderer level (I6).
+- [x] CG-2.4 Table-driven decay tests with injected clock (time decay, churn decay, link-confidence weights, thresholds).
+**Demo:** simulate 30 days + 600 churned lines; watch VERIFIED → STALE → UNKNOWN with correct numbers. ✅ recorded in `docs/demos/phase-2.md` (2026-06-10; 91 tests green).
 
 ## Phase 3 — First surface: `cart ask` (PR 4)
 - [ ] CG-3.1 Query API read verbs (SPEC §8); LLM rim adapter receives rows only — no DB handle.
