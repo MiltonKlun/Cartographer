@@ -1,0 +1,12 @@
+{
+  "id": "BHV-0291",
+  "statement": "Only admin and editor roles can export records",
+  "area": "permissions/records",
+  "criticality": "red",
+  "links": {
+    "implemented_in": ["src/records/export.ts"]
+  },
+  "created_by": "session",
+  "status": "active",
+  "notes": "Proposal from SES-0007; awaiting confirmation (I3)."
+}

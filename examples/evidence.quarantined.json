@@ -1,0 +1,11 @@
+{
+  "id": "EV-9402",
+  "behavior_ids": [],
+  "kind": "incident",
+  "outcome": "violates",
+  "observed_at": "2026-06-09T18:40:00Z",
+  "source": { "type": "incident", "ref": "INC-31" },
+  "redaction": { "status": "quarantined", "rules_hit": ["aws-access-key"] },
+  "link_confidence": "low",
+  "ingested_by": "ingest:incident@1"
+}

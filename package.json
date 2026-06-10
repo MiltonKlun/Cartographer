@@ -1,0 +1,29 @@
+{
+  "name": "cartographer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "QA behavior ledger — the map, not the pipeline",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "bin": {
+    "cart": "./bin/cart.mjs"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "node scripts/lint.mjs",
+    "pretest": "npm run build",
+    "test": "node --test \"dist/**/*.test.js\"",
+    "validate:schemas": "node scripts/validate-schemas.mjs",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run validate:schemas"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}

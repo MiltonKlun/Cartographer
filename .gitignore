@@ -1,0 +1,9 @@
+node_modules/
+dist/
+ledger.db
+ledger.db-journal
+ledger.db-wal
+ledger.db-shm
+export/
+vault/
+*.tsbuildinfo

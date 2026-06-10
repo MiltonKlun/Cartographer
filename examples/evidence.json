@@ -1,0 +1,15 @@
+{
+  "id": "EV-9311",
+  "behavior_ids": ["BHV-0142"],
+  "kind": "test_run",
+  "outcome": "supports",
+  "observed_at": "2026-06-08T03:12:44Z",
+  "source": { "type": "ci", "ref": "run 8841", "url": "https://ci.example.com/runs/8841" },
+  "artifact": {
+    "vault_path": "vault/sha256/ab/abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    "media_type": "application/zip"
+  },
+  "redaction": { "status": "clean", "rules_hit": [] },
+  "link_confidence": "high",
+  "ingested_by": "ingest:playwright-json@1"
+}

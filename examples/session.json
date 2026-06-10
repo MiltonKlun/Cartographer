@@ -1,0 +1,20 @@
+{
+  "id": "SES-0007",
+  "engineer": "ana",
+  "started_at": "2026-06-09T14:00:00Z",
+  "ended_at": "2026-06-09T14:42:00Z",
+  "observations": [
+    {
+      "at": "2026-06-09T14:31:12Z",
+      "note": "double-submit on coupon form creates two carts",
+      "auto": false,
+      "evidence_id": "EV-9402"
+    }
+  ],
+  "proposals": {
+    "behaviors": ["BHV-0312?"],
+    "tests": ["draft: coupon double-submit"],
+    "questions": ["Q-0042"]
+  },
+  "status": "in_review"
+}

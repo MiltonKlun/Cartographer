@@ -25,13 +25,13 @@ Status: `[ ]` todo · `[x]` done · `[~]` blocked (reason inline)
 
 ## Phase 0 — Skeleton + enforcement primitives (PR 1)
 Goal: the invariants exist as code before any feature does.
-- [ ] CG-0.1 Scaffold: TS strict, `node:test`, lint/format, `config/` (decay.json, redaction.json), repo layout per SPEC §1.
-- [ ] CG-0.2 `schemas/` for behavior, evidence, question, session, receipt (SPEC §3) + one generic AJV validator + `examples/` fixtures.
-- [ ] CG-0.3 `ledger.db` init + migrations harness + append-only `mutations` table (I11).
-- [ ] CG-0.4 **Claims renderer**: claim objects without citations or `inference` flag fail to render (I1); verdicts without `freshness/computed_at` rejected (I2). Unit tests prove both.
-- [ ] CG-0.5 **Autonomy gateway** `autonomy.ts`: tier table from SPEC §9; NEVER classes have no dispatch path (I4/I5); per-person aggregation rejected at query API (I7).
-- [ ] CG-0.6 `cart export` → deterministic JSONL (stable key order, tested).
-**Demo:** create a behavior via CLI, export it, validate it, watch a citation-less claim get refused.
+- [x] CG-0.1 Scaffold: TS strict, `node:test`, lint/format, `config/` (decay.json, redaction.json), repo layout per SPEC §1.
+- [x] CG-0.2 `schemas/` for behavior, evidence, question, session, receipt (SPEC §3) + one generic AJV validator + `examples/` fixtures.
+- [x] CG-0.3 `ledger.db` init + migrations harness + append-only `mutations` table (I11).
+- [x] CG-0.4 **Claims renderer**: claim objects without citations or `inference` flag fail to render (I1); verdicts without `freshness/computed_at` rejected (I2). Unit tests prove both.
+- [x] CG-0.5 **Autonomy gateway** `autonomy.ts`: tier table from SPEC §9; NEVER classes have no dispatch path (I4/I5); per-person aggregation rejected at query API (I7).
+- [x] CG-0.6 `cart export` → deterministic JSONL (stable key order, tested).
+**Demo:** create a behavior via CLI, export it, validate it, watch a citation-less claim get refused. ✅ recorded in `docs/demos/phase-0.md` (2026-06-10; 44 tests green).
 
 ## Phase 1 — Evidence ingestion (PR 2)
 Goal: real CI runs become evidence.

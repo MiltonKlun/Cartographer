@@ -1,0 +1,12 @@
+{
+  "$comment": "Redaction rules applied at ingestion (I10), before anything reaches the vault. action: 'scrub' replaces the match with [REDACTED:<name>]; 'quarantine' stores a metadata-only evidence record (no blob). Review this file at adoption — BUILD-PLAN CG-10.3.",
+  "rules": [
+    { "name": "aws-access-key", "pattern": "AKIA[0-9A-Z]{16}", "action": "quarantine" },
+    { "name": "private-key-block", "pattern": "-----BEGIN [A-Z ]*PRIVATE KEY-----", "action": "quarantine" },
+    { "name": "bearer-token", "pattern": "[Bb]earer\\s+[A-Za-z0-9\\-_=]+\\.[A-Za-z0-9\\-_=]+\\.?[A-Za-z0-9\\-_.+/=]*", "action": "scrub" },
+    { "name": "authorization-header", "pattern": "[Aa]uthorization:\\s*\\S+", "action": "scrub" },
+    { "name": "generic-api-key", "pattern": "(?:api[_-]?key|secret|token)[\"']?\\s*[:=]\\s*[\"']?[A-Za-z0-9\\-_]{16,}", "action": "scrub" },
+    { "name": "password-assignment", "pattern": "(?:password|passwd|pwd)[\"']?\\s*[:=]\\s*[\"']?[^\\s\"']{4,}", "action": "scrub" },
+    { "name": "email-address", "pattern": "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "action": "scrub" }
+  ]
+}

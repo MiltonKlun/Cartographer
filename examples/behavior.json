@@ -1,0 +1,18 @@
+{
+  "id": "BHV-0142",
+  "statement": "A viewer-role user cannot bulk-delete records",
+  "area": "permissions/records",
+  "criticality": "red",
+  "links": {
+    "demanded_by": ["JIRA-812"],
+    "verified_by": [
+      { "test_id": "tests/perm.spec.ts::viewer cannot bulk delete", "confidence": "high" }
+    ],
+    "implemented_in": ["src/records/**", "src/auth/roles.ts"],
+    "violated_by": ["INC-23"]
+  },
+  "confirmed_by": { "person": "ana", "at": "2026-06-10T09:00:00Z" },
+  "created_by": "interview",
+  "status": "active",
+  "notes": ""
+}

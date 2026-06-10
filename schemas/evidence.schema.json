@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "cartographer/evidence.schema.json",
+  "title": "Evidence",
+  "description": "Immutable, append-only observation record (SPEC §3.2). Never edited or deleted; corrections are new records with supersedes. quarantined ⇒ metadata-only, no artifact stored (I10).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "behavior_ids", "kind", "outcome", "observed_at", "source", "redaction", "link_confidence", "ingested_by"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^EV-[0-9]{4,}$" },
+    "behavior_ids": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^BHV-[0-9]{4,}$" }
+    },
+    "kind": { "enum": ["test_run", "trace", "screenshot", "manual_observation", "crawl", "incident"] },
+    "outcome": { "enum": ["supports", "violates", "inconclusive"] },
+    "observed_at": { "$ref": "#/definitions/timestamp" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "ref"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string", "minLength": 1 },
+        "url": { "type": "string" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vault_path", "media_type"],
+      "properties": {
+        "vault_path": { "type": "string", "pattern": "^vault/sha256/[0-9a-f]{2}/[0-9a-f]{64}$" },
+        "media_type": { "type": "string", "minLength": 1 }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "rules_hit"],
+      "properties": {
+        "status": { "enum": ["clean", "redacted", "quarantined"] },
+        "rules_hit": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "link_confidence": { "enum": ["high", "medium", "low"] },
+    "ingested_by": { "type": "string", "minLength": 1 },
+    "supersedes": { "type": "string", "pattern": "^EV-[0-9]{4,}$" }
+  },
+  "allOf": [
+    {
+      "description": "quarantined evidence is metadata-only: the blob was not stored (I10)",
+      "if": {
+        "type": "object",
+        "required": ["redaction"],
+        "properties": {
+          "redaction": {
+            "type": "object",
+            "required": ["status"],
+            "properties": { "status": { "const": "quarantined" } }
+          }
+        }
+      },
+      "then": {
+        "type": "object",
+        "properties": { "artifact": false }
+      }
+    }
+  ],
+  "definitions": {
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,3})?Z$"
+    }
+  }
+}

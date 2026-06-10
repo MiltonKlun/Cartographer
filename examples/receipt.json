@@ -1,0 +1,10 @@
+{
+  "id": "ACT-0019",
+  "class": "selector_heal",
+  "target": "tests/checkout.spec.ts::applies coupon",
+  "summary": "locator '#apply' → getByRole('button', {name: 'Apply'})",
+  "evidence_basis": ["EV-9388 (failing)", "EV-9391 (green re-run)"],
+  "revert": "git apply -R receipts/ACT-0019.patch",
+  "performed_at": "2026-06-09T03:20:00Z",
+  "performed_by": "cartographer@0.1"
+}
