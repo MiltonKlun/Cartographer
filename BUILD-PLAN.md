@@ -35,11 +35,11 @@ Goal: the invariants exist as code before any feature does.
 
 ## Phase 1 — Evidence ingestion (PR 2)
 Goal: real CI runs become evidence.
-- [ ] CG-1.1 Vault: content-addressed write, never mutate; `cart vault gc` stub (receipt-gated).
-- [ ] CG-1.2 **Redaction stage** (I10): secret regexes + configurable PII; fail ⇒ quarantined metadata-only record. Tests with seeded secrets.
-- [ ] CG-1.3 `ingest:playwright-json` (+ trace zips) and `ingest:junit`; idempotent (dedupe key = source ref + artifact hash).
-- [ ] CG-1.4 Deterministic linking: `@bhv BHV-xxxx` annotation → exact `test_id` → path/area overlap; confidence per SPEC §6.
-**Demo:** ingest a real Playwright report twice; EV records linked once, no dupes, secrets scrubbed.
+- [x] CG-1.1 Vault: content-addressed write, never mutate; `cart vault gc` stub (receipt-gated).
+- [x] CG-1.2 **Redaction stage** (I10): secret regexes + configurable PII; fail ⇒ quarantined metadata-only record. Tests with seeded secrets.
+- [x] CG-1.3 `ingest:playwright-json` (+ trace zips) and `ingest:junit`; idempotent (dedupe key = source ref + artifact hash).
+- [x] CG-1.4 Deterministic linking: `@bhv BHV-xxxx` annotation → exact `test_id` → path/area overlap; confidence per SPEC §6.
+**Demo:** ingest a real Playwright report twice; EV records linked once, no dupes, secrets scrubbed. ✅ recorded in `docs/demos/phase-1.md` (2026-06-10; 66 tests green).
 
 ## Phase 2 — Decay engine + health (PR 3)
 - [ ] CG-2.1 Verdict computation per SPEC §4 (hard VIOLATED rule first); only constructor of verdicts (I2).

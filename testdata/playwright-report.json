@@ -1,0 +1,88 @@
+{
+  "config": { "version": "1.48.0" },
+  "stats": { "startTime": "2026-06-10T03:00:00.000Z", "expected": 2, "unexpected": 2 },
+  "suites": [
+    {
+      "title": "perm.spec.ts",
+      "file": "tests/perm.spec.ts",
+      "specs": [
+        {
+          "title": "viewer cannot bulk delete",
+          "file": "tests/perm.spec.ts",
+          "tests": [
+            {
+              "annotations": [{ "type": "bhv", "description": "BHV-0001" }],
+              "results": [
+                { "status": "passed", "startTime": "2026-06-10T03:01:10.000Z", "attachments": [] }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "checkout.spec.ts",
+      "file": "tests/checkout.spec.ts",
+      "specs": [
+        {
+          "title": "coupon applies before tax",
+          "file": "tests/checkout.spec.ts",
+          "tests": [
+            {
+              "annotations": [],
+              "results": [
+                {
+                  "status": "failed",
+                  "startTime": "2026-06-10T03:02:30.000Z",
+                  "error": {
+                    "message": "expected total 9.00 but got 10.00 (request sent with password=hunter2secret9 in body)",
+                    "stack": "at tests/checkout.spec.ts:42"
+                  },
+                  "attachments": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "checkout logs config on failure",
+          "file": "tests/checkout.spec.ts",
+          "tests": [
+            {
+              "annotations": [],
+              "results": [
+                {
+                  "status": "failed",
+                  "startTime": "2026-06-10T03:03:00.000Z",
+                  "error": {
+                    "message": "dumped env: AWS_KEY=AKIAIOSFODNN7EXAMPLE region us-east-1",
+                    "stack": "at tests/checkout.spec.ts:77"
+                  },
+                  "attachments": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "inventory.spec.ts",
+      "file": "tests/inventory/sort.spec.ts",
+      "specs": [
+        {
+          "title": "items sort by price",
+          "file": "tests/inventory/sort.spec.ts",
+          "tests": [
+            {
+              "annotations": [],
+              "results": [
+                { "status": "passed", "startTime": "2026-06-10T03:04:00.000Z", "attachments": [] }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

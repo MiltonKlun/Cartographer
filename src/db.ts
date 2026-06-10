@@ -71,6 +71,16 @@ const MIGRATIONS: Migration[] = [
         BEGIN SELECT RAISE(ABORT, 'behaviors are never deleted; retire instead (I11)'); END;
     `,
   },
+  {
+    version: 3,
+    name: 'evidence-dedupe-key',
+    // internal idempotence column (SPEC §6: dedupe key = source ref + artifact
+    // hash); not part of the evidence record schema
+    sql: `
+      ALTER TABLE evidence ADD COLUMN dedupe_key TEXT;
+      CREATE UNIQUE INDEX evidence_dedupe ON evidence(dedupe_key) WHERE dedupe_key IS NOT NULL;
+    `,
+  },
 ];
 
 export interface MutationRow {
@@ -118,9 +128,13 @@ export class Ledger {
     }
   }
 
-  /** Runs `fn` inside a transaction (no nesting). */
+  private transactionDepth = 0;
+
+  /** Runs `fn` inside a transaction; nested calls join the outer one. */
   transaction<T>(fn: () => T): T {
+    if (this.transactionDepth > 0) return fn();
     this.db.exec('BEGIN');
+    this.transactionDepth++;
     try {
       const result = fn();
       this.db.exec('COMMIT');
@@ -128,6 +142,8 @@ export class Ledger {
     } catch (err) {
       this.db.exec('ROLLBACK');
       throw err;
+    } finally {
+      this.transactionDepth--;
     }
   }
 
@@ -158,14 +174,22 @@ export class Ledger {
     });
   }
 
-  insertEvidence(e: Evidence, actor: string): void {
+  insertEvidence(e: Evidence, actor: string, dedupeKey?: string): void {
     assertValid('evidence', e);
     this.transaction(() => {
       this.db
-        .prepare('INSERT INTO evidence (id, observed_at, outcome, json) VALUES (?, ?, ?, ?)')
-        .run(e.id, e.observed_at, e.outcome, JSON.stringify(e));
+        .prepare('INSERT INTO evidence (id, observed_at, outcome, json, dedupe_key) VALUES (?, ?, ?, ?, ?)')
+        .run(e.id, e.observed_at, e.outcome, JSON.stringify(e), dedupeKey ?? null);
       this.logMutation(actor, 'evidence', e.id, { new: e });
     });
+  }
+
+  /** Idempotence check for ingestors (SPEC §6). */
+  findEvidenceIdByDedupeKey(key: string): string | undefined {
+    const row = this.db.prepare('SELECT id FROM evidence WHERE dedupe_key = ?').get(key) as
+      | { id: string }
+      | undefined;
+    return row?.id;
   }
 
   insertQuestion(q: Question, actor: string): void {

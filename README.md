@@ -36,10 +36,12 @@
 - The NEVER list and the anti-surveillance clause (no per-person metrics)
   cannot be loosened by configuration or by any executing agent.
 
-*Status: Phase 0 complete (2026-06-10) — enforcement primitives exist as
-code: schemas + AJV validator, ledger with append-only mutations log, claims
-renderer (I1/I2), autonomy gateway (I4/I5/I7), deterministic `cart export`.
-Demo: `docs/demos/phase-0.md`. Next: BUILD-PLAN Phase 1 (evidence
-ingestion). The companion ET-Kit (exploratory testing) lives in a separate
+*Status: Phases 0–1 complete (2026-06-10). Phase 0: enforcement primitives —
+schemas + AJV validator, append-only ledger, claims renderer (I1/I2),
+autonomy gateway (I4/I5/I7), deterministic `cart export`. Phase 1: evidence
+ingestion — content-addressed vault, non-optional redaction stage (I10),
+`ingest:playwright-json` + `ingest:junit` (idempotent), deterministic
+linking. Demos: `docs/demos/`. Next: BUILD-PLAN Phase 2 (decay engine +
+health). The companion ET-Kit (exploratory testing) lives in a separate
 folder and feeds `ingest:session` from Phase 8 on — see
 `docs/decisions/0001`.*

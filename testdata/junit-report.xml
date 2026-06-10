@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="api-tests" tests="3" failures="1" skipped="1" timestamp="2026-06-10T04:00:00Z">
+  <testcase classname="api.records.PermissionsTest" name="viewer cannot bulk delete via API" time="0.41"/>
+  <testcase classname="api.checkout.CouponTest" name="coupon rejects after expiry" time="1.20">
+    <failure message="expected 422, got 200">assertion failed: expected 422 but got 200 (token=Bearer eyJhbGciOi.eyJzdWIi.SflKxwRJ)</failure>
+  </testcase>
+  <testcase classname="api.export.ExportTest" name="export respects role" time="0.00">
+    <skipped/>
+  </testcase>
+</testsuite>

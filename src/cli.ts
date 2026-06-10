@@ -2,7 +2,7 @@
 // (renderer demo), export. Every mutation flows through the validated ledger;
 // every side effect through the autonomy gateway; every human-facing claim
 // through the claims renderer. No bypass paths.
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { Ledger } from './db.js';
@@ -11,7 +11,13 @@ import { QueryApi } from './query.js';
 import { renderClaims, type Claim } from './renderer.js';
 import { exportLedgerToFile } from './export.js';
 import { isRecordType, validateRecord } from './validate.js';
-import type { Behavior, Criticality } from './types.js';
+import { ingestCandidates } from './ingest.js';
+import { parsePlaywrightReport } from './ingest-playwright.js';
+import { parseJunitReport } from './ingest-junit.js';
+import { loadRedactionRules } from './redaction.js';
+import { vaultOrphans, vaultAbsPath } from './vault.js';
+import { isoNow, systemClock } from './clock.js';
+import type { Behavior, Criticality, Evidence } from './types.js';
 
 const HEALTH_OK = { degraded: false } as const;
 
@@ -39,8 +45,103 @@ const USAGE = `cart — Cartographer behavior ledger (Phase 0)
   cart claim --text T [--cite ID,ID] [--inference] [--unknown]
                                               render a claim (refused without citations — I1)
   cart export [--out export/ledger.jsonl]     deterministic JSONL export (ACT, receipted)
+  cart ingest playwright <report.json> [--ref R]
+  cart ingest junit <report.xml> [--ref R]     CI results → evidence (redacted, linked, deduped)
+  cart vault gc [--apply]                      list orphan blobs; delete only with --apply (receipted)
 
-  Global: --db <path> (default ./ledger.db or CART_DB)`;
+  Global: --db <path> (default ./ledger.db or CART_DB), --vault <dir> (default ./vault or CART_VAULT)`;
+
+function vaultRoot(values: { vault?: string }): string {
+  return values.vault ?? process.env['CART_VAULT'] ?? join(process.cwd(), 'vault');
+}
+
+function cmdIngest(args: string[]): void {
+  const { values, positionals } = parseArgs({
+    args,
+    options: {
+      db: { type: 'string' },
+      vault: { type: 'string' },
+      ref: { type: 'string' },
+    },
+    allowPositionals: true,
+  });
+  const [format, file] = positionals;
+  if (!format || !file) fail('usage: cart ingest <playwright|junit> <report> [--ref R]');
+  const parseOpts = {
+    ...(values.ref !== undefined ? { ref: values.ref } : {}),
+    fallbackObservedAt: isoNow(systemClock),
+  };
+  let candidates;
+  if (format === 'playwright') candidates = parsePlaywrightReport(file, parseOpts);
+  else if (format === 'junit') candidates = parseJunitReport(file, parseOpts);
+  else return fail(`unknown ingest format "${format}" — playwright or junit`);
+
+  const ledger = new Ledger(dbPath(values));
+  try {
+    const gateway = new AutonomyGateway(ledger);
+    const summary = ingestCandidates(ledger, gateway, candidates, {
+      vaultRoot: vaultRoot(values),
+      rules: loadRedactionRules(),
+    });
+    console.log(
+      `ingested ${summary.created.length} evidence record(s) ` +
+        `(${summary.linked} linked, ${summary.unlinked} unlinked, ${summary.quarantined.length} quarantined), ` +
+        `${summary.duplicates.length} duplicate(s) skipped — receipt ${summary.receiptId}`,
+    );
+    for (const id of summary.created) console.log(`  + ${id}`);
+    if (summary.quarantined.length > 0) {
+      console.log(`  quarantined (metadata-only, blob NOT stored — I10): ${summary.quarantined.join(', ')}`);
+    }
+  } finally {
+    ledger.close();
+  }
+}
+
+function cmdVaultGc(args: string[]): void {
+  const { values } = parseArgs({
+    args,
+    options: {
+      db: { type: 'string' },
+      vault: { type: 'string' },
+      apply: { type: 'boolean', default: false },
+    },
+  });
+  const root = vaultRoot(values);
+  const ledger = new Ledger(dbPath(values));
+  try {
+    const referenced = new Set(
+      (ledger.allRecords('evidence') as Evidence[])
+        .map((e) => e.artifact?.vault_path)
+        .filter((p): p is string => p !== undefined),
+    );
+    const orphans = vaultOrphans(root, referenced);
+    if (orphans.length === 0) {
+      console.log('vault gc: no orphan blobs');
+      return;
+    }
+    if (!values.apply) {
+      console.log(`vault gc (dry run): ${orphans.length} orphan blob(s) — pass --apply to delete with receipt`);
+      for (const p of orphans) console.log(`  ${p}`);
+      return;
+    }
+    const gateway = new AutonomyGateway(ledger);
+    const result = gateway.perform({
+      class: 'vault_gc',
+      target: root,
+      summary: `delete ${orphans.length} orphan blob(s): ${orphans.join(', ')}`,
+      evidence_basis: [],
+      revert: 'restore vault/ from backup; blobs are content-addressed so paths are reproducible',
+      execute: () => {
+        for (const p of orphans) unlinkSync(vaultAbsPath(root, p));
+      },
+    });
+    if (result.tier === 'ACT') {
+      console.log(`vault gc: deleted ${orphans.length} orphan blob(s) (receipt ${result.receipt.id})`);
+    }
+  } finally {
+    ledger.close();
+  }
+}
 
 function cmdInit(args: string[]): void {
   const { values } = parseArgs({ args, options: { db: { type: 'string' } } });
@@ -210,6 +311,11 @@ export function main(argv: string[]): void {
         return cmdClaim(argv.slice(1));
       case 'export':
         return cmdExport(argv.slice(1));
+      case 'ingest':
+        return cmdIngest(argv.slice(1));
+      case 'vault':
+        if (sub === 'gc') return cmdVaultGc(rest);
+        return fail(`unknown vault subcommand "${sub ?? ''}"\n\n${USAGE}`);
       case undefined:
       case 'help':
       case '--help':
