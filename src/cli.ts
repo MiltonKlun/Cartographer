@@ -20,6 +20,7 @@ import { isoNow, systemClock, fixedClock, type Clock } from './clock.js';
 import { computeVerdict, loadDecayConfig } from './decay.js';
 import { GitChurnIndex, NullChurnIndex } from './churn.js';
 import { computeHealth, computeStatus, DEFAULT_SLA_HOURS } from './health.js';
+import { assembleAsk, renderAsk, queueGapQuestion } from './ask.js';
 import type { Behavior, Criticality, Evidence } from './types.js';
 
 const HEALTH_OK = { degraded: false } as const;
@@ -49,8 +50,10 @@ function fail(message: string): never {
 const USAGE = `cart — Cartographer behavior ledger (Phase 0)
 
   cart init                                   create ledger.db (idempotent)
+  cart ask "<question>" [--queue]             the 30-second answer, evidence-cited (UNKNOWN when unmapped)
   cart behavior add --statement S --area A    add a behavior proposal
-       [--criticality red|high|normal|low] [--implemented-in glob,glob] [--actor name]
+       [--criticality red|high|normal|low] [--implemented-in glob,glob]
+       [--verified-by test_id,test_id] [--actor name]
   cart behavior confirm <BHV-id> --person P   confirm a behavior (I3)
   cart behavior list [--area A]               list behaviors (via claims renderer)
   cart validate <type> <file.json>            validate a record against its schema
@@ -105,6 +108,35 @@ function cmdIngest(args: string[]): void {
     for (const id of summary.created) console.log(`  + ${id}`);
     if (summary.quarantined.length > 0) {
       console.log(`  quarantined (metadata-only, blob NOT stored — I10): ${summary.quarantined.join(', ')}`);
+    }
+  } finally {
+    ledger.close();
+  }
+}
+
+function cmdAsk(args: string[]): void {
+  const { values, positionals } = parseArgs({
+    args,
+    options: {
+      db: { type: 'string' },
+      repo: { type: 'string' },
+      now: { type: 'string' },
+      queue: { type: 'boolean', default: false },
+      actor: { type: 'string' },
+    },
+    allowPositionals: true,
+  });
+  const question = positionals.join(' ').trim();
+  if (!question) fail('usage: cart ask "<question>" [--queue]');
+  const ledger = new Ledger(dbPath(values));
+  try {
+    const clock = clockFrom(values);
+    const api = new QueryApi(ledger, { config: loadDecayConfig(), churn: churnFrom(values), clock });
+    const result = assembleAsk(api, question);
+    console.log(renderAsk(result));
+    if ((!result.mapViable || result.partial) && values.queue) {
+      const q = queueGapQuestion(ledger, question, actor(values), clock);
+      console.log(`queued ${q.id}: "${q.prompt}" — answer it via the interview to grow the map`);
     }
   } finally {
     ledger.close();
@@ -241,6 +273,7 @@ function cmdBehaviorAdd(args: string[]): void {
       area: { type: 'string' },
       criticality: { type: 'string', default: 'normal' },
       'implemented-in': { type: 'string' },
+      'verified-by': { type: 'string' },
       'created-by': { type: 'string', default: 'manual' },
       actor: { type: 'string' },
     },
@@ -253,9 +286,18 @@ function cmdBehaviorAdd(args: string[]): void {
       statement: values.statement,
       area: values.area,
       criticality: values.criticality as Criticality,
-      links: values['implemented-in']
-        ? { implemented_in: values['implemented-in'].split(',').map((s) => s.trim()) }
-        : {},
+      links: {
+        ...(values['implemented-in']
+          ? { implemented_in: values['implemented-in'].split(',').map((s) => s.trim()) }
+          : {}),
+        ...(values['verified-by']
+          ? {
+              verified_by: values['verified-by']
+                .split(',')
+                .map((s) => ({ test_id: s.trim(), confidence: 'high' as const })),
+            }
+          : {}),
+      },
       created_by: values['created-by'] as Behavior['created_by'],
       status: 'active',
     };
@@ -296,7 +338,7 @@ function cmdBehaviorList(args: string[]): void {
   });
   const ledger = new Ledger(dbPath(values));
   try {
-    const api = new QueryApi(ledger);
+    const api = new QueryApi(ledger, { config: loadDecayConfig(), churn: new NullChurnIndex(), clock: systemClock });
     const filter = values.area !== undefined ? { area: values.area } : {};
     const behaviors = api.findBehaviors(filter);
     if (behaviors.length === 0) {
@@ -398,6 +440,8 @@ export function main(argv: string[]): void {
       case 'vault':
         if (sub === 'gc') return cmdVaultGc(rest);
         return fail(`unknown vault subcommand "${sub ?? ''}"\n\n${USAGE}`);
+      case 'ask':
+        return cmdAsk(argv.slice(1));
       case 'verdict':
         return cmdVerdict(argv.slice(1));
       case 'status':

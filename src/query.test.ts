@@ -5,11 +5,14 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Ledger } from './db.js';
-import { QueryApi, PersonAggregationError, assertNotPersonKey } from './query.js';
+import { QueryApi, PersonAggregationError, assertNotPersonKey, tokenize } from './query.js';
+import { loadDecayConfig } from './decay.js';
+import { NullChurnIndex } from './churn.js';
 import { fixedClock } from './clock.js';
 import type { Behavior } from './types.js';
 
 const clock = fixedClock('2026-06-10T12:00:00Z');
+const ctx = { config: loadDecayConfig(), churn: new NullChurnIndex(), clock };
 
 function seededApi(): QueryApi {
   const ledger = new Ledger(join(mkdtempSync(join(tmpdir(), 'cart-test-')), 'ledger.db'), { clock });
@@ -32,7 +35,7 @@ function seededApi(): QueryApi {
       'ana',
     );
   });
-  return new QueryApi(ledger);
+  return new QueryApi(ledger, ctx);
 }
 
 test('findBehaviors filters by text and area (prefix match on area)', () => {
@@ -70,4 +73,32 @@ test('product-level aggregation works (area, criticality)', () => {
 test('arbitrary non-person keys are still rejected as unsupported', () => {
   const api = seededApi();
   assert.throws(() => api.countBehaviorsBy('statement'), /unsupported groupBy/);
+});
+
+test('tokenize: drops stopwords/QA boilerplate, de-pluralizes', () => {
+  assert.deepEqual(tokenize('Do we test coupon stacking?'), ['coupon', 'stacking']);
+  assert.deepEqual(tokenize('are gift cards covered?'), ['gift', 'card']);
+});
+
+test('searchBehaviors ranks by token overlap and never matches noise', () => {
+  const api = seededApi();
+  const hits = api.searchBehaviors('do we test coupons before tax?');
+  assert.equal(hits[0]?.behavior.statement, 'Coupon applies before tax');
+  assert.ok(hits.every((h) => h.score > 0));
+  assert.deepEqual(api.searchBehaviors('completely unrelated frobnicator'), []);
+});
+
+test('verdict() delegates to the decay engine and carries all I2 fields', () => {
+  const api = seededApi();
+  const v = api.verdict('BHV-0001');
+  assert.equal(v.state, 'UNKNOWN'); // seeded behaviors are unconfirmed (I3)
+  assert.deepEqual(Object.keys(v).sort(), ['computed_at', 'freshness', 'newest_evidence_id', 'state']);
+});
+
+test('gapsFor flags paths no behavior covers', () => {
+  const api = seededApi();
+  assert.deepEqual(api.gapsFor(['src/records/new.ts', 'src/anything/else.ts']), [
+    'src/records/new.ts',
+    'src/anything/else.ts',
+  ]);
 });

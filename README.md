@@ -42,7 +42,8 @@ autonomy gateway (I4/I5/I7), deterministic `cart export`. Phase 1: evidence
 ingestion — content-addressed vault, non-optional redaction stage (I10),
 idempotent Playwright/JUnit ingestors, deterministic linking. Phase 2: decay
 engine (the only verdict constructor, I2), git churn index, `cart status` +
-degraded-health banners (I6). Demos: `docs/demos/`. Next: BUILD-PLAN
-Phase 3 (`cart ask`, the first surface — system becomes genuinely usable).
+degraded-health banners (I6). Phase 3: `cart ask` — query API verbs,
+minimum-viable-map rule, rows-only rim (the system is now genuinely usable).
+Demos: `docs/demos/`. Next: BUILD-PLAN Phase 4 (bootstrap tooling).
 The companion ET-Kit (exploratory testing) lives in a separate folder and
 feeds `ingest:session` from Phase 8 on — see `docs/decisions/0001`.*

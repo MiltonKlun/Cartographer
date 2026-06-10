@@ -49,10 +49,10 @@ Goal: real CI runs become evidence.
 **Demo:** simulate 30 days + 600 churned lines; watch VERIFIED → STALE → UNKNOWN with correct numbers. ✅ recorded in `docs/demos/phase-2.md` (2026-06-10; 91 tests green).
 
 ## Phase 3 — First surface: `cart ask` (PR 4)
-- [ ] CG-3.1 Query API read verbs (SPEC §8); LLM rim adapter receives rows only — no DB handle.
-- [ ] CG-3.2 `cart ask` per SPEC §7.1 incl. **minimum-viable-map rule** (UNKNOWN + offer to queue a question for unmapped areas).
-- [ ] CG-3.3 Rows-only fallback mode (LLM unavailable ⇒ surface still works, SPEC §12).
-**Demo:** the 30-second answer with citations on a seeded ledger; an unmapped area answers honestly.
+- [x] CG-3.1 Query API read verbs (SPEC §8); LLM rim adapter receives rows only — no DB handle.
+- [x] CG-3.2 `cart ask` per SPEC §7.1 incl. **minimum-viable-map rule** (UNKNOWN + offer to queue a question for unmapped areas).
+- [x] CG-3.3 Rows-only fallback mode (LLM unavailable ⇒ surface still works, SPEC §12).
+**Demo:** the 30-second answer with citations on a seeded ledger; an unmapped area answers honestly. ✅ recorded in `docs/demos/phase-3.md` (2026-06-10; 103 tests green).
 
 ## Phase 4 — Bootstrap tooling (PR 5)
 - [ ] CG-4.1 `cart bootstrap import <repo>`: one unconfirmed behavior proposal per existing test (SPEC §11).
