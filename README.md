@@ -44,6 +44,9 @@ idempotent Playwright/JUnit ingestors, deterministic linking. Phase 2: decay
 engine (the only verdict constructor, I2), git churn index, `cart status` +
 degraded-health banners (I6). Phase 3: `cart ask` — query API verbs,
 minimum-viable-map rule, rows-only rim (the system is now genuinely usable).
-Demos: `docs/demos/`. Next: BUILD-PLAN Phase 4 (bootstrap tooling).
+Phase 4: bootstrap tooling — `cart bootstrap import` (one unconfirmed
+behavior per test), red-domain criticality guesser, `cart interview` batch
+confirm/edit/merge/discard. Demos: `docs/demos/`. Next: BUILD-PLAN Phase 5
+(`cart pr` risk notes).
 The companion ET-Kit (exploratory testing) lives in a separate folder and
 feeds `ingest:session` from Phase 8 on — see `docs/decisions/0001`.*

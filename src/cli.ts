@@ -21,6 +21,8 @@ import { computeVerdict, loadDecayConfig } from './decay.js';
 import { GitChurnIndex, NullChurnIndex } from './churn.js';
 import { computeHealth, computeStatus, DEFAULT_SLA_HOURS } from './health.js';
 import { assembleAsk, renderAsk, queueGapQuestion } from './ask.js';
+import { bootstrapRepo } from './bootstrap.js';
+import { applyInterview, pendingProposals, type InterviewItem } from './interview.js';
 import type { Behavior, Criticality, Evidence } from './types.js';
 
 const HEALTH_OK = { degraded: false } as const;
@@ -51,6 +53,10 @@ const USAGE = `cart — Cartographer behavior ledger (Phase 0)
 
   cart init                                   create ledger.db (idempotent)
   cart ask "<question>" [--queue]             the 30-second answer, evidence-cited (UNKNOWN when unmapped)
+  cart bootstrap import <repo> [--apply]      draft one unconfirmed behavior per test (preview unless --apply)
+  cart interview --batch N                     list N pending proposals to confirm/edit/merge/discard
+  cart interview --apply <answers.json> --person P
+                                              apply interview decisions (writes confirmed_by — I3)
   cart behavior add --statement S --area A    add a behavior proposal
        [--criticality red|high|normal|low] [--implemented-in glob,glob]
        [--verified-by test_id,test_id] [--actor name]
@@ -138,6 +144,99 @@ function cmdAsk(args: string[]): void {
       const q = queueGapQuestion(ledger, question, actor(values), clock);
       console.log(`queued ${q.id}: "${q.prompt}" — answer it via the interview to grow the map`);
     }
+  } finally {
+    ledger.close();
+  }
+}
+
+function cmdBootstrap(args: string[]): void {
+  const { values, positionals } = parseArgs({
+    args,
+    options: {
+      db: { type: 'string' },
+      apply: { type: 'boolean', default: false },
+      actor: { type: 'string' },
+    },
+    allowPositionals: true,
+  });
+  const [sub, repo] = positionals;
+  if (sub !== 'import') return fail('usage: cart bootstrap import <repo> [--apply]');
+  if (!repo) fail('bootstrap import requires a repo path');
+  if (!existsSync(repo)) fail(`no such directory: ${repo}`);
+
+  const ledger = new Ledger(dbPath(values));
+  try {
+    // ids are assigned eagerly off a running counter so a preview shows real ids
+    let counter = parseInt((ledger.nextId('behavior').split('-')[1] ?? '1'), 10);
+    const nextId = (): string => `BHV-${String(counter++).padStart(4, '0')}`;
+    const { drafts, filesScanned } = bootstrapRepo(repo, nextId);
+
+    console.log(`scanned ${filesScanned} test file(s) → ${drafts.length} behavior proposal(s) (all unconfirmed)`);
+    const byCrit = new Map<string, number>();
+    for (const d of drafts) byCrit.set(d.behavior.criticality, (byCrit.get(d.behavior.criticality) ?? 0) + 1);
+    console.log(`criticality guesses: ${[...byCrit.entries()].map(([k, n]) => `${k} ${n}`).join(' · ') || '(none)'}`);
+
+    if (!values.apply) {
+      for (const d of drafts.slice(0, 12)) {
+        console.log(`  ${d.behavior.id}  [${d.behavior.criticality}] ${d.behavior.statement}  (${d.behavior.area})`);
+      }
+      if (drafts.length > 12) console.log(`  … and ${drafts.length - 12} more`);
+      console.log('preview only — re-run with --apply to write proposals, then `cart interview --batch 20`');
+      return;
+    }
+
+    const who = actor(values);
+    ledger.transaction(() => {
+      for (const d of drafts) ledger.insertBehavior(d.behavior, who);
+    });
+    console.log(`wrote ${drafts.length} unconfirmed proposal(s). Next: cart interview --batch 20`);
+  } finally {
+    ledger.close();
+  }
+}
+
+function cmdInterview(args: string[]): void {
+  const { values } = parseArgs({
+    args,
+    options: {
+      db: { type: 'string' },
+      batch: { type: 'string' },
+      apply: { type: 'string' },
+      person: { type: 'string' },
+      now: { type: 'string' },
+    },
+  });
+  const ledger = new Ledger(dbPath(values));
+  try {
+    if (values.apply) {
+      if (!values.person) fail('interview --apply requires --person (attribution, I3/I11)');
+      const items = JSON.parse(readFileSync(values.apply, 'utf8')) as InterviewItem[];
+      const outcome = applyInterview(ledger, values.person, items, clockFrom(values));
+      console.log(
+        `interview applied by ${values.person}: ${outcome.confirmed.length} confirmed, ` +
+          `${outcome.merged.length} merged, ${outcome.discarded.length} discarded`,
+      );
+      for (const id of outcome.confirmed) console.log(`  ✓ ${id} confirmed`);
+      for (const m of outcome.merged) console.log(`  ⇒ ${m.from} merged into ${m.into}`);
+      for (const id of outcome.discarded) console.log(`  ✗ ${id} discarded`);
+      return;
+    }
+
+    const n = values.batch ? Number(values.batch) : 20;
+    const pending = pendingProposals(ledger, n);
+    if (pending.length === 0) {
+      console.log('no pending proposals — the map has no unconfirmed behaviors awaiting interview');
+      return;
+    }
+    console.log(`${pending.length} proposal(s) awaiting your judgment (why: each was drafted from a test, unconfirmed):`);
+    for (const b of pending) {
+      const testId = b.links.verified_by?.[0]?.test_id ?? '(no test)';
+      console.log(`  ${b.id}  [${b.criticality}] ${b.statement}`);
+      console.log(`        area: ${b.area} · from: ${testId}`);
+    }
+    console.log('\nWrite decisions to an answers.json file, then:');
+    console.log('  cart interview --apply answers.json --person <you>');
+    console.log('Each item: {"behaviorId":"BHV-xxxx","decision":{"kind":"confirm"|"merge"|"discard", …}}');
   } finally {
     ledger.close();
   }
@@ -442,6 +541,10 @@ export function main(argv: string[]): void {
         return fail(`unknown vault subcommand "${sub ?? ''}"\n\n${USAGE}`);
       case 'ask':
         return cmdAsk(argv.slice(1));
+      case 'bootstrap':
+        return cmdBootstrap(argv.slice(1));
+      case 'interview':
+        return cmdInterview(argv.slice(1));
       case 'verdict':
         return cmdVerdict(argv.slice(1));
       case 'status':

@@ -55,10 +55,10 @@ Goal: real CI runs become evidence.
 **Demo:** the 30-second answer with citations on a seeded ledger; an unmapped area answers honestly. ✅ recorded in `docs/demos/phase-3.md` (2026-06-10; 103 tests green).
 
 ## Phase 4 — Bootstrap tooling (PR 5)
-- [ ] CG-4.1 `cart bootstrap import <repo>`: one unconfirmed behavior proposal per existing test (SPEC §11).
-- [ ] CG-4.2 `cart interview --batch 20`: confirm/edit/merge/discard loop; answers write `confirmed_by` (I3).
-- [ ] CG-4.3 Red-domain keyword guesser for `criticality` (proposal only).
-**Demo:** cold-start a real repo to ≥50 confirmed behaviors in one sitting.
+- [x] CG-4.1 `cart bootstrap import <repo>`: one unconfirmed behavior proposal per existing test (SPEC §11).
+- [x] CG-4.2 `cart interview --batch 20`: confirm/edit/merge/discard loop; answers write `confirmed_by` (I3).
+- [x] CG-4.3 Red-domain keyword guesser for `criticality` (proposal only).
+**Demo:** cold-start a real repo to ≥50 confirmed behaviors in one sitting. ✅ recorded in `docs/demos/phase-4.md` (2026-06-11; 50 confirmed from own suite; 126 tests green).
 
 ## Phase 5 — `cart pr` risk notes (PR 6)
 - [ ] CG-5.1 Diff → globs → behaviors → rank by `criticality × (1−F)`; new files become gap candidates + queued questions.
