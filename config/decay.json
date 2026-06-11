@@ -1,5 +1,5 @@
 {
-  "$comment": "SPEC §4 constants. Changing any value requires a decision note in docs/decisions/ (Constitution §5). Calibrate against two weeks of real data — BUILD-PLAN CG-10.2.",
+  "$comment": "SPEC §4 constants (v0.1 priors, unchanged). Changing any value requires a decision note in docs/decisions/ (Constitution §5). Calibration procedure: docs/decisions/0002-decay-calibration.md.",
   "tau_time_days": {
     "red": 7,
     "high": 14,

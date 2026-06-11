@@ -94,11 +94,11 @@ Goal: real CI runs become evidence.
 **Demo:** heal a broken locator end-to-end with self-evidencing receipt; show a forbidden patch being refused. ✅ recorded in `docs/demos/phase-9.md` (2026-06-11; refused/reverted/healed paths; 201 tests green).
 
 ## Phase 10 — Evaluation + calibration + hardening (PR 11)
-- [ ] CG-10.1 Eval harness: golden-question set for `ask`; weekly random claim-citation audit (sample N claims ⇒ every citation resolves); triage precision vs. human labels; decline-rule check (I9).
-- [ ] CG-10.2 Calibrate `config/decay.json` against two weeks of real data; decision note required for changes.
-- [ ] CG-10.3 Backup/restore doc + daily export hook; redaction config review checklist.
-- [ ] CG-10.4 Adoption honesty doc: "don't adopt Cartographer if…" (one-off projects, no CI, no regression future).
-**Demo:** eval report + calibrated constants + a clean restore drill.
+- [x] CG-10.1 Eval harness: golden-question set for `ask`; weekly random claim-citation audit (sample N claims ⇒ every citation resolves); triage precision vs. human labels; decline-rule check (I9).
+- [x] CG-10.2 Calibrate `config/decay.json` against two weeks of real data; decision note required for changes. (v0.1 priors kept; procedure in `docs/decisions/0002`.)
+- [x] CG-10.3 Backup/restore doc + daily export hook; redaction config review checklist. (`docs/operations.md`.)
+- [x] CG-10.4 Adoption honesty doc: "don't adopt Cartographer if…" (one-off projects, no CI, no regression future). (`docs/adoption.md`.)
+**Demo:** eval report + calibrated constants + a clean restore drill. ✅ recorded in `docs/demos/phase-10.md` (2026-06-11; 4/4 eval checks, restore drill; 216 tests green).
 
 ---
 

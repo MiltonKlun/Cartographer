@@ -35,6 +35,8 @@ import { startSession, noteSession, stopSession, renderStop, openSessionFor } fr
 import { parseSessionSheet, importSessionSheet } from './ingest-session.js';
 import { runHeal, renderHealOutcome, type HealPorts, type RerunResult } from './heal.js';
 import { patchViolations } from './guardrails.js';
+import { runEval, renderEvalReport, type GoldenSet } from './eval.js';
+import { shouldDecline } from './decline.js';
 import { GitDiff, diffFromText } from './diff.js';
 import { assembleRiskNote, renderRiskNote, queueGaps } from './pr.js';
 import { clusterFailures, renderTriage } from './triage.js';
@@ -111,6 +113,8 @@ const USAGE = `cart — Cartographer behavior ledger (Phase 0)
        [--rerun-passed | --rerun-failed]      locator-only heal: guardrails → apply → re-run (I12)
   cart guardrails-check <orig-file> <patched-file> [--selector-heal]
                                               run §10 guardrails on a patch (no apply); exit 1 if violations
+  cart eval [--golden <set.json>]              run the eval harness; exit 1 on any failure (CI-friendly)
+  cart decline "<request>"                     I9: recommend raw prompting for one-off/no-regression work
   cart vault gc [--apply]                      list orphan blobs; delete only with --apply (receipted)
   cart verdict <BHV-id> [--repo <dir>]         compute + render the decayed verdict (I2)
   cart status [--sla hours]                    ingestion health, counts, verdict histogram (I6)
@@ -451,6 +455,32 @@ function cmdBootstrap(args: string[]): void {
   } finally {
     ledger.close();
   }
+}
+
+function cmdEval(args: string[]): void {
+  const { values } = parseArgs({
+    args,
+    options: { db: { type: 'string' }, repo: { type: 'string' }, golden: { type: 'string' }, now: { type: 'string' } },
+  });
+  const golden: GoldenSet = values.golden ? (JSON.parse(readFileSync(values.golden, 'utf8')) as GoldenSet) : {};
+  const ledger = new Ledger(dbPath(values));
+  try {
+    const clock = clockFrom(values);
+    const api = new QueryApi(ledger, { config: loadDecayConfig(), churn: churnFrom(values), clock });
+    const report = runEval(ledger, api, golden);
+    console.log(renderEvalReport(report));
+    if (!report.ok) process.exit(1);
+  } finally {
+    ledger.close();
+  }
+}
+
+function cmdDecline(args: string[]): void {
+  const { positionals } = parseArgs({ args, options: {}, allowPositionals: true });
+  const request = positionals.join(' ').trim();
+  if (!request) fail('usage: cart decline "<request>"');
+  const verdict = shouldDecline(request);
+  console.log(verdict.decline ? `DECLINE — ${verdict.reason}` : `USE THE LEDGER — ${verdict.reason}`);
 }
 
 function cmdHeal(args: string[]): void {
@@ -1011,6 +1041,10 @@ export function main(argv: string[]): void {
         return cmdHeal(argv.slice(1));
       case 'guardrails-check':
         return cmdGuardrailsCheck(argv.slice(1));
+      case 'eval':
+        return cmdEval(argv.slice(1));
+      case 'decline':
+        return cmdDecline(argv.slice(1));
       case 'brief':
         return cmdBrief(argv.slice(1));
       case 'interview':

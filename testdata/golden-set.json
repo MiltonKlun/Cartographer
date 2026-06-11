@@ -1,0 +1,26 @@
+{
+  "ask": [
+    { "question": "do we test coupons before tax?", "expectBehaviors": ["BHV-0001"] },
+    { "question": "do we test password reset email delivery?", "expectUnknown": true }
+  ],
+  "triage": [
+    {
+      "failure": { "testId": "t::a", "errorMessage": "AssertionError: expected 9.00 to equal 10.00" },
+      "expected": "product_bug"
+    },
+    {
+      "failure": { "testId": "t::b", "errorMessage": "TimeoutError: locator.click: Timeout 30000ms exceeded waiting for getByRole('button')" },
+      "expected": "test_brittleness"
+    },
+    {
+      "failure": { "testId": "t::c", "errorMessage": "Error: connect ECONNREFUSED 127.0.0.1:5432" },
+      "expected": "environment"
+    }
+  ],
+  "decline": [
+    { "request": "write a one-off script to rename these files", "expectDecline": true },
+    { "request": "quick throwaway spike to try the new API", "expectDecline": true },
+    { "request": "add a regression test for the coupon stacking bug we ship Friday", "expectDecline": false },
+    { "request": "verify the checkout flow before release", "expectDecline": false }
+  ]
+}

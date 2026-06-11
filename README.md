@@ -63,7 +63,14 @@ QUESTION→Q, IDEA→proposal, evidence redacted before vaulting). Phase 9:
 selector heal — `guardrails.ts` (one pure `patchViolations`, the §10/I5
 source of truth) + the self-evidencing heal flow (`cart heal`: guardrails →
 apply → re-run → green evidence in receipt, else auto-revert + demote to
-PROPOSE, I12). Demos: `docs/demos/`. Next: BUILD-PLAN Phase 10 (evaluation +
-calibration + hardening — the final phase).
+PROPOSE, I12). Phase 10: evaluation + calibration + hardening — the eval
+harness (`cart eval`: claim-citation audit, golden ask set, triage precision,
+decline rule I9), the decay-calibration procedure (`docs/decisions/0002`,
+priors kept), operations/backup/restore + redaction-review checklist
+(`docs/operations.md`), and the adoption-honesty doc (`docs/adoption.md`).
+
+**All 11 phases (CG-0 → CG-10) are complete.** 216 tests; zero runtime
+dependencies beyond AJV; every invariant enforced at a code chokepoint.
+Demos: `docs/demos/phase-0.md … phase-10.md`.
 The companion ET-Kit (exploratory testing) lives in a separate folder and
 feeds `ingest:session` from Phase 8 on — see `docs/decisions/0001`.*
