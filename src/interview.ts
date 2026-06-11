@@ -5,7 +5,8 @@
 // keystrokes / an answers file onto these actions.
 import { type Clock, isoNow } from './clock.js';
 import type { Ledger } from './db.js';
-import type { Behavior } from './types.js';
+import { guessCriticality } from './criticality.js';
+import type { Behavior, Criticality, Question } from './types.js';
 
 export type InterviewDecision =
   | { kind: 'confirm'; edit?: Partial<Pick<Behavior, 'statement' | 'area' | 'criticality'>> }
@@ -100,4 +101,92 @@ export function pendingProposals(ledger: Ledger, limit?: number): Behavior[] {
     .filter((b) => b.status === 'active' && !b.confirmed_by)
     .sort((a, b) => a.id.localeCompare(b.id));
   return limit ? pending.slice(0, limit) : pending;
+}
+
+// ---- single-question flow (CG-7.2, SPEC §7.5) ----
+
+/** The next open question to put to a human (oldest id first). */
+export function nextQuestion(ledger: Ledger): Question | undefined {
+  return (ledger.allRecords('questions') as Question[])
+    .filter((q) => q.status === 'open')
+    .sort((a, b) => a.id.localeCompare(b.id))[0];
+}
+
+export type QuestionAnswer =
+  | { kind: 'new_behavior'; statement: string; area: string; criticality?: Criticality }
+  | { kind: 'confirm_existing'; behaviorId: string }
+  | { kind: 'dismiss'; reason?: string };
+
+export interface AnswerOutcome {
+  questionId: string;
+  resultingMutations: string[];
+}
+
+/**
+ * Answer one open question. The answer IS the approval (I3): a new behavior is
+ * created AND confirmed in the same step; the question is closed and records
+ * its resulting mutations. Everything runs in one transaction.
+ */
+export function answerQuestion(
+  ledger: Ledger,
+  questionId: string,
+  person: string,
+  answer: QuestionAnswer,
+  clock: Clock,
+): AnswerOutcome {
+  const at = isoNow(clock);
+  const mutations: string[] = [];
+
+  ledger.transaction(() => {
+    const question = (ledger.allRecords('questions') as Question[]).find((q) => q.id === questionId);
+    if (!question) throw new Error(`no such question: ${questionId}`);
+    if (question.status !== 'open') throw new Error(`${questionId} is not open (status: ${question.status})`);
+
+    let answerText: string;
+    switch (answer.kind) {
+      case 'new_behavior': {
+        const criticality = answer.criticality ?? guessCriticality(`${answer.statement} ${answer.area}`).criticality;
+        const behavior: Behavior = {
+          id: ledger.nextId('behavior'),
+          statement: answer.statement,
+          area: answer.area,
+          criticality,
+          links: {},
+          confirmed_by: { person, at }, // answering confirms (I3)
+          created_by: 'interview',
+          status: 'active',
+          notes: `created from ${questionId}`,
+        };
+        ledger.insertBehavior(behavior, person);
+        mutations.push(`${behavior.id} created`, `${behavior.id} confirmed`);
+        answerText = `Yes — ${answer.statement} (${behavior.id})`;
+        break;
+      }
+      case 'confirm_existing': {
+        const existing = ledger.getBehavior(answer.behaviorId);
+        if (!existing) throw new Error(`no such behavior: ${answer.behaviorId}`);
+        if (!existing.confirmed_by) {
+          ledger.updateBehavior(answer.behaviorId, (b) => ({ ...b, confirmed_by: { person, at } }), person);
+          mutations.push(`${answer.behaviorId} confirmed`);
+        }
+        answerText = `Covered by ${answer.behaviorId}`;
+        break;
+      }
+      case 'dismiss': {
+        answerText = `Dismissed${answer.reason ? `: ${answer.reason}` : ''}`;
+        break;
+      }
+    }
+
+    const newStatus = answer.kind === 'dismiss' ? 'dismissed' : 'answered';
+    const updated: Question = {
+      ...question,
+      status: newStatus,
+      answer: { by: person, at, text: answerText },
+      resulting_mutations: mutations,
+    };
+    ledger.updateQuestion(updated, person);
+  });
+
+  return { questionId, resultingMutations: mutations };
 }

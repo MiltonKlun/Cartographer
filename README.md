@@ -53,7 +53,10 @@ historical incidents flagged). Phase 6: `cart triage` — failure clustering by
 signature, deterministic product/brittleness/environment classifier (LLM
 residue labeled `inference`), and the `quarantine.json` non-blocking lane
 (entry = receipted ACT, never edits test source, 7-day expiry escalation).
-Demos: `docs/demos/`. Next: BUILD-PLAN Phase 7 (`cart brief` + interview
-surface).
+Phase 7: `cart brief` (one-screen morning brief — overnight verdict
+transitions via snapshot diff, decayed-red, quarantine expiries, top
+questions, health footer) + `cart interview` single-question flow (the answer
+is the approval, I3). Demos: `docs/demos/`. Next: BUILD-PLAN Phase 8
+(ride-along sessions + ET-Kit sheet ingestion).
 The companion ET-Kit (exploratory testing) lives in a separate folder and
 feeds `ingest:session` from Phase 8 on — see `docs/decisions/0001`.*

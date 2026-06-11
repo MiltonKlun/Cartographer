@@ -22,7 +22,15 @@ import { GitChurnIndex, NullChurnIndex } from './churn.js';
 import { computeHealth, computeStatus, DEFAULT_SLA_HOURS } from './health.js';
 import { assembleAsk, renderAsk, queueGapQuestion } from './ask.js';
 import { bootstrapRepo } from './bootstrap.js';
-import { applyInterview, pendingProposals, type InterviewItem } from './interview.js';
+import {
+  applyInterview,
+  pendingProposals,
+  nextQuestion,
+  answerQuestion,
+  type InterviewItem,
+  type QuestionAnswer,
+} from './interview.js';
+import { assembleBrief, renderBrief } from './brief.js';
 import { GitDiff, diffFromText } from './diff.js';
 import { assembleRiskNote, renderRiskNote, queueGaps } from './pr.js';
 import { clusterFailures, renderTriage } from './triage.js';
@@ -73,6 +81,11 @@ const USAGE = `cart — Cartographer behavior ledger (Phase 0)
   cart quarantine remove <test_id>            non-blocking lane (entry = ACT, receipt; never edits source — I5)
   cart quarantine list [--expired]
   cart bootstrap import <repo> [--apply]      draft one unconfirmed behavior per test (preview unless --apply)
+  cart brief [--quarantine F]                  the morning brief: one screen, ordered sections, health footer
+  cart interview                               show the next open question with why_asked (single-question, §7.5)
+  cart interview answer <Q-id> --person P --new-behavior "S" --area A
+  cart interview answer <Q-id> --person P --confirm <BHV-id>
+  cart interview answer <Q-id> --person P --dismiss [--reason R]
   cart interview --batch N                     list N pending proposals to confirm/edit/merge/discard
   cart interview --apply <answers.json> --person P
                                               apply interview decisions (writes confirmed_by — I3)
@@ -399,8 +412,34 @@ function cmdBootstrap(args: string[]): void {
   }
 }
 
-function cmdInterview(args: string[]): void {
+function cmdBrief(args: string[]): void {
   const { values } = parseArgs({
+    args,
+    options: {
+      db: { type: 'string' },
+      repo: { type: 'string' },
+      quarantine: { type: 'string' },
+      now: { type: 'string' },
+      'no-snapshot': { type: 'boolean', default: false },
+    },
+  });
+  const ledger = new Ledger(dbPath(values));
+  try {
+    const clock = clockFrom(values);
+    const ctx = { config: loadDecayConfig(), churn: churnFrom(values), clock };
+    const api = new QueryApi(ledger, ctx);
+    const data = assembleBrief(ledger, api, ctx, {
+      quarantinePath: quarantinePath(values),
+      writeSnapshot: !values['no-snapshot'],
+    });
+    console.log(renderBrief(data));
+  } finally {
+    ledger.close();
+  }
+}
+
+function cmdInterview(args: string[]): void {
+  const { values, positionals } = parseArgs({
     args,
     options: {
       db: { type: 'string' },
@@ -408,10 +447,46 @@ function cmdInterview(args: string[]): void {
       apply: { type: 'string' },
       person: { type: 'string' },
       now: { type: 'string' },
+      'new-behavior': { type: 'string' },
+      area: { type: 'string' },
+      criticality: { type: 'string' },
+      confirm: { type: 'string' },
+      dismiss: { type: 'boolean', default: false },
+      reason: { type: 'string' },
     },
+    allowPositionals: true,
   });
   const ledger = new Ledger(dbPath(values));
   try {
+    // single-question answer (CG-7.2)
+    if (positionals[0] === 'answer') {
+      const qId = positionals[1];
+      if (!qId) fail('usage: cart interview answer <Q-id> --person P (--new-behavior … | --confirm BHV-id | --dismiss)');
+      if (!values.person) fail('answering requires --person (the answer is the approval — I3/I11)');
+      let answer: QuestionAnswer;
+      if (values['new-behavior']) {
+        if (!values.area) fail('--new-behavior requires --area');
+        answer = {
+          kind: 'new_behavior',
+          statement: values['new-behavior'],
+          area: values.area,
+          ...(values.criticality ? { criticality: values.criticality as Criticality } : {}),
+        };
+      } else if (values.confirm) {
+        answer = { kind: 'confirm_existing', behaviorId: values.confirm };
+      } else if (values.dismiss) {
+        answer = { kind: 'dismiss', ...(values.reason !== undefined ? { reason: values.reason } : {}) };
+      } else {
+        return fail('answer needs one of --new-behavior "S" --area A, --confirm BHV-id, or --dismiss');
+      }
+      const outcome = answerQuestion(ledger, qId, values.person, answer, clockFrom(values));
+      console.log(`${qId} answered by ${values.person}`);
+      for (const m of outcome.resultingMutations) console.log(`  → ${m}`);
+      if (outcome.resultingMutations.length === 0) console.log('  → (no mutation — question closed)');
+      return;
+    }
+
+    // batch apply (CG-4.2)
     if (values.apply) {
       if (!values.person) fail('interview --apply requires --person (attribution, I3/I11)');
       const items = JSON.parse(readFileSync(values.apply, 'utf8')) as InterviewItem[];
@@ -426,21 +501,38 @@ function cmdInterview(args: string[]): void {
       return;
     }
 
-    const n = values.batch ? Number(values.batch) : 20;
-    const pending = pendingProposals(ledger, n);
-    if (pending.length === 0) {
-      console.log('no pending proposals — the map has no unconfirmed behaviors awaiting interview');
+    // batch list (CG-4.2)
+    if (values.batch) {
+      const n = Number(values.batch);
+      const pending = pendingProposals(ledger, n);
+      if (pending.length === 0) {
+        console.log('no pending proposals — the map has no unconfirmed behaviors awaiting interview');
+        return;
+      }
+      console.log(`${pending.length} proposal(s) awaiting your judgment (why: each was drafted from a test, unconfirmed):`);
+      for (const b of pending) {
+        const testId = b.links.verified_by?.[0]?.test_id ?? '(no test)';
+        console.log(`  ${b.id}  [${b.criticality}] ${b.statement}`);
+        console.log(`        area: ${b.area} · from: ${testId}`);
+      }
+      console.log('\nWrite decisions to an answers.json file, then:');
+      console.log('  cart interview --apply answers.json --person <you>');
+      console.log('Each item: {"behaviorId":"BHV-xxxx","decision":{"kind":"confirm"|"merge"|"discard", …}}');
       return;
     }
-    console.log(`${pending.length} proposal(s) awaiting your judgment (why: each was drafted from a test, unconfirmed):`);
-    for (const b of pending) {
-      const testId = b.links.verified_by?.[0]?.test_id ?? '(no test)';
-      console.log(`  ${b.id}  [${b.criticality}] ${b.statement}`);
-      console.log(`        area: ${b.area} · from: ${testId}`);
+
+    // default: single-question mode (CG-7.2, SPEC §7.5) — one question, with why_asked
+    const q = nextQuestion(ledger);
+    if (!q) {
+      console.log('no open questions — the map has no gaps queued for human meaning');
+      return;
     }
-    console.log('\nWrite decisions to an answers.json file, then:');
-    console.log('  cart interview --apply answers.json --person <you>');
-    console.log('Each item: {"behaviorId":"BHV-xxxx","decision":{"kind":"confirm"|"merge"|"discard", …}}');
+    console.log(`${q.id}: ${q.prompt}`);
+    console.log(`  why asked: ${q.why_asked}`);
+    console.log('\nAnswer it (the answer IS the approval — I3):');
+    console.log(`  cart interview answer ${q.id} --person <you> --new-behavior "<statement>" --area <area>`);
+    console.log(`  cart interview answer ${q.id} --person <you> --confirm <BHV-id>`);
+    console.log(`  cart interview answer ${q.id} --person <you> --dismiss [--reason "<why>"]`);
   } finally {
     ledger.close();
   }
@@ -753,6 +845,8 @@ export function main(argv: string[]): void {
         return cmdQuarantine(argv.slice(1));
       case 'bootstrap':
         return cmdBootstrap(argv.slice(1));
+      case 'brief':
+        return cmdBrief(argv.slice(1));
       case 'interview':
         return cmdInterview(argv.slice(1));
       case 'verdict':

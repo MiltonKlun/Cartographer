@@ -73,9 +73,9 @@ Goal: real CI runs become evidence.
 **Demo:** triage a red run into clusters with repro proposals; quarantine one flake with receipt + ticket. ✅ recorded in `docs/demos/phase-6.md` (2026-06-11; 159 tests green). CI guide: `docs/quarantine-ci.md`.
 
 ## Phase 7 — `cart brief` + interview surface (PR 8)
-- [ ] CG-7.1 One-screen brief per SPEC §7.4 (hard length limit, ordered sections, health footer).
-- [ ] CG-7.2 `cart interview` single-question flow with `why_asked` + inline confirm-applies mutation (I3).
-**Demo:** a morning brief off real data; answer one question and watch the ledger mutate with attribution.
+- [x] CG-7.1 One-screen brief per SPEC §7.4 (hard length limit, ordered sections, health footer).
+- [x] CG-7.2 `cart interview` single-question flow with `why_asked` + inline confirm-applies mutation (I3).
+**Demo:** a morning brief off real data; answer one question and watch the ledger mutate with attribution. ✅ recorded in `docs/demos/phase-7.md` (2026-06-11; VERIFIED→STALE transition + Q→behavior; 172 tests green).
 
 ## Phase 8 — Ride-along sessions (PR 9)
 > Scope note (2026-06-10, decision 0001): the separate **ET-Kit** (user-level

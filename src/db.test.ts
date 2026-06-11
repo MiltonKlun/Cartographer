@@ -101,3 +101,12 @@ test('nextId zero-pads and increments per record type', () => {
   assert.equal(ledger.nextId('behavior'), 'BHV-0002');
   assert.equal(ledger.nextId('evidence'), 'EV-0001');
 });
+
+test('verdict snapshots are append-only and diffable (migration 4)', () => {
+  const ledger = new Ledger(tempDbPath(), { clock });
+  ledger.writeVerdictSnapshot('2026-06-10T08:00:00Z', [{ behavior_id: 'BHV-0001', state: 'VERIFIED', freshness: 0.9 }]);
+  ledger.writeVerdictSnapshot('2026-06-11T08:00:00Z', [{ behavior_id: 'BHV-0001', state: 'STALE', freshness: 0.3 }]);
+  assert.equal(ledger.previousSnapshotAt('2026-06-11T08:00:00Z'), '2026-06-10T08:00:00Z');
+  assert.equal(ledger.verdictSnapshot('2026-06-10T08:00:00Z').get('BHV-0001')?.state, 'VERIFIED');
+  assert.throws(() => ledger.rawExec("UPDATE verdict_snapshots SET state = 'VIOLATED'"), /append-only/);
+});

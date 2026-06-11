@@ -81,6 +81,23 @@ const MIGRATIONS: Migration[] = [
       CREATE UNIQUE INDEX evidence_dedupe ON evidence(dedupe_key) WHERE dedupe_key IS NOT NULL;
     `,
   },
+  {
+    version: 4,
+    name: 'verdict-snapshots',
+    // append-only record of each behavior's verdict state at a snapshot time,
+    // so `cart brief` can diff overnight transitions (SPEC §7.4)
+    sql: `
+      CREATE TABLE verdict_snapshots (
+        snapshot_at TEXT NOT NULL,
+        behavior_id TEXT NOT NULL,
+        state       TEXT NOT NULL,
+        freshness   REAL NOT NULL,
+        PRIMARY KEY (snapshot_at, behavior_id)
+      );
+      CREATE TRIGGER verdict_snapshots_no_update BEFORE UPDATE ON verdict_snapshots
+        BEGIN SELECT RAISE(ABORT, 'verdict snapshots are append-only (I11)'); END;
+    `,
+  },
 ];
 
 export interface MutationRow {
@@ -238,6 +255,18 @@ export class Ledger {
     return next;
   }
 
+  updateQuestion(next: Question, actor: string): void {
+    assertValid('question', next);
+    const old = (this.allRecords('questions') as Question[]).find((q) => q.id === next.id);
+    if (!old) throw new Error(`no such question: ${next.id}`);
+    this.transaction(() => {
+      this.db
+        .prepare('UPDATE questions SET status = ?, json = ? WHERE id = ?')
+        .run(next.status, JSON.stringify(next), next.id);
+      this.logMutation(actor, 'questions', next.id, { old, new: next });
+    });
+  }
+
   // -- reads --
 
   getBehavior(id: string): Behavior | undefined {
@@ -258,6 +287,32 @@ export class Ledger {
     return this.db
       .prepare('SELECT seq, actor, at, tbl, record_id, diff FROM mutations ORDER BY seq')
       .all() as unknown as MutationRow[];
+  }
+
+  // -- verdict snapshots (append-only; for cart brief overnight diff, §7.4) --
+
+  writeVerdictSnapshot(at: string, rows: { behavior_id: string; state: string; freshness: number }[]): void {
+    this.transaction(() => {
+      const stmt = this.db.prepare(
+        'INSERT OR IGNORE INTO verdict_snapshots (snapshot_at, behavior_id, state, freshness) VALUES (?, ?, ?, ?)',
+      );
+      for (const r of rows) stmt.run(at, r.behavior_id, r.state, r.freshness);
+    });
+  }
+
+  /** The most recent snapshot strictly before `before` (the "yesterday" side). */
+  previousSnapshotAt(before: string): string | undefined {
+    const row = this.db
+      .prepare('SELECT DISTINCT snapshot_at FROM verdict_snapshots WHERE snapshot_at < ? ORDER BY snapshot_at DESC LIMIT 1')
+      .get(before) as { snapshot_at: string } | undefined;
+    return row?.snapshot_at;
+  }
+
+  verdictSnapshot(at: string): Map<string, { state: string; freshness: number }> {
+    const rows = this.db
+      .prepare('SELECT behavior_id, state, freshness FROM verdict_snapshots WHERE snapshot_at = ?')
+      .all(at) as { behavior_id: string; state: string; freshness: number }[];
+    return new Map(rows.map((r) => [r.behavior_id, { state: r.state, freshness: r.freshness }]));
   }
 
   /** Escape hatch for tests proving the SQL-level immutability triggers. */
