@@ -1,0 +1,90 @@
+{
+  "suites": [
+    {
+      "title": "checkout.spec.ts",
+      "file": "tests/checkout.spec.ts",
+      "specs": [
+        {
+          "title": "coupon applies before tax",
+          "file": "tests/checkout.spec.ts",
+          "tests": [
+            {
+              "results": [
+                {
+                  "status": "failed",
+                  "error": {
+                    "message": "AssertionError: expected total 9.00 to equal 10.00",
+                    "stack": "AssertionError: expected 9.00 to equal 10.00\n    at applyCoupon (src/pricing/coupon.ts:42:11)\n    at tests/checkout.spec.ts:18:5"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "tax rounds half-up",
+          "file": "tests/checkout.spec.ts",
+          "tests": [
+            {
+              "results": [
+                {
+                  "status": "failed",
+                  "error": {
+                    "message": "AssertionError: expected total 1.00 to equal 2.00",
+                    "stack": "AssertionError: expected 1.00 to equal 2.00\n    at applyCoupon (src/pricing/coupon.ts:42:19)\n    at tests/checkout.spec.ts:30:5"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "login.spec.ts",
+      "file": "tests/login.spec.ts",
+      "specs": [
+        {
+          "title": "shows the dashboard after login",
+          "file": "tests/login.spec.ts",
+          "tests": [
+            {
+              "results": [
+                {
+                  "status": "timedOut",
+                  "error": {
+                    "message": "TimeoutError: locator.click: Timeout 30000ms exceeded waiting for getByRole('button', { name: 'Sign in' })",
+                    "stack": "TimeoutError\n    at tests/login.spec.ts:12:20"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "api.spec.ts",
+      "file": "tests/api.spec.ts",
+      "specs": [
+        {
+          "title": "fetches the catalog",
+          "file": "tests/api.spec.ts",
+          "tests": [
+            {
+              "results": [
+                {
+                  "status": "failed",
+                  "error": {
+                    "message": "Error: connect ECONNREFUSED 127.0.0.1:5432",
+                    "stack": "Error: connect ECONNREFUSED 127.0.0.1:5432\n    at TCPConnectWrap.afterConnect (node:net:1187:16)"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

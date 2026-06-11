@@ -49,7 +49,11 @@ behavior per test), red-domain criticality guesser, `cart interview` batch
 confirm/edit/merge/discard. Phase 5: `cart pr` risk notes — diff → at-risk
 behaviors ranked by criticality×(1−F), new files → queued gap questions,
 PROPOSE-by-default comment posting, and a retro-validation gate (3/3
-historical incidents flagged). Demos: `docs/demos/`. Next: BUILD-PLAN
-Phase 6 (`cart triage` + quarantine).
+historical incidents flagged). Phase 6: `cart triage` — failure clustering by
+signature, deterministic product/brittleness/environment classifier (LLM
+residue labeled `inference`), and the `quarantine.json` non-blocking lane
+(entry = receipted ACT, never edits test source, 7-day expiry escalation).
+Demos: `docs/demos/`. Next: BUILD-PLAN Phase 7 (`cart brief` + interview
+surface).
 The companion ET-Kit (exploratory testing) lives in a separate folder and
 feeds `ingest:session` from Phase 8 on — see `docs/decisions/0001`.*

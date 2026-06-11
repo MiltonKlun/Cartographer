@@ -67,10 +67,10 @@ Goal: real CI runs become evidence.
 **Demo:** risk note on a real PR + the retro-validation transcript. ✅ recorded in `docs/demos/phase-5.md` (2026-06-11; 3/3 incidents flagged; 142 tests green).
 
 ## Phase 6 — `cart triage` + quarantine (PR 7)
-- [ ] CG-6.1 Failure clustering (error class + normalized locator + stack hash); deterministic classifier first, LLM residue marked `inference`.
-- [ ] CG-6.2 `quarantine.json` lane mechanism + CI consumption doc; entry+ticket = ACT with receipt; **no test-source edits** (I5).
-- [ ] CG-6.3 Expiry (7d) escalation wired for the brief.
-**Demo:** triage a red run into clusters with repro proposals; quarantine one flake with receipt + ticket.
+- [x] CG-6.1 Failure clustering (error class + normalized locator + stack hash); deterministic classifier first, LLM residue marked `inference`.
+- [x] CG-6.2 `quarantine.json` lane mechanism + CI consumption doc; entry+ticket = ACT with receipt; **no test-source edits** (I5).
+- [x] CG-6.3 Expiry (7d) escalation wired for the brief.
+**Demo:** triage a red run into clusters with repro proposals; quarantine one flake with receipt + ticket. ✅ recorded in `docs/demos/phase-6.md` (2026-06-11; 159 tests green). CI guide: `docs/quarantine-ci.md`.
 
 ## Phase 7 — `cart brief` + interview surface (PR 8)
 - [ ] CG-7.1 One-screen brief per SPEC §7.4 (hard length limit, ordered sections, health footer).

@@ -25,6 +25,16 @@ import { bootstrapRepo } from './bootstrap.js';
 import { applyInterview, pendingProposals, type InterviewItem } from './interview.js';
 import { GitDiff, diffFromText } from './diff.js';
 import { assembleRiskNote, renderRiskNote, queueGaps } from './pr.js';
+import { clusterFailures, renderTriage } from './triage.js';
+import { failuresFromPlaywright, failuresFromJunit } from './triage-parse.js';
+import {
+  loadQuarantine,
+  buildEntry,
+  upsertEntry,
+  removeEntry,
+  writeQuarantine,
+  expiredEntries,
+} from './quarantine.js';
 import type { Behavior, Criticality, Evidence } from './types.js';
 
 const HEALTH_OK = { degraded: false } as const;
@@ -57,6 +67,11 @@ const USAGE = `cart — Cartographer behavior ledger (Phase 0)
   cart ask "<question>" [--queue]             the 30-second answer, evidence-cited (UNKNOWN when unmapped)
   cart pr <ref> [--repo D | --diff F] [--queue] [--post]
                                               risk note: behaviors this change exposes, ranked
+  cart triage <report> [--format playwright|junit]
+                                              cluster failures, classify, link behaviors, propose repro
+  cart quarantine add <test_id> --ticket K [--reason R] [--days N]
+  cart quarantine remove <test_id>            non-blocking lane (entry = ACT, receipt; never edits source — I5)
+  cart quarantine list [--expired]
   cart bootstrap import <repo> [--apply]      draft one unconfirmed behavior per test (preview unless --apply)
   cart interview --batch N                     list N pending proposals to confirm/edit/merge/discard
   cart interview --apply <answers.json> --person P
@@ -151,6 +166,125 @@ function cmdAsk(args: string[]): void {
   } finally {
     ledger.close();
   }
+}
+
+function quarantinePath(values: { quarantine?: string }): string {
+  return values.quarantine ?? process.env['CART_QUARANTINE'] ?? join(process.cwd(), 'quarantine.json');
+}
+
+function cmdTriage(args: string[]): void {
+  const { values, positionals } = parseArgs({
+    args,
+    options: {
+      db: { type: 'string' },
+      format: { type: 'string' },
+      now: { type: 'string' },
+    },
+    allowPositionals: true,
+  });
+  const report = positionals[0];
+  if (!report) fail('usage: cart triage <report.json|xml> [--format playwright|junit]');
+  if (!existsSync(report)) fail(`no such report: ${report}`);
+
+  const format = values.format ?? (report.endsWith('.xml') ? 'junit' : 'playwright');
+  let failures;
+  if (format === 'playwright') failures = failuresFromPlaywright(report);
+  else if (format === 'junit') failures = failuresFromJunit(report);
+  else return fail(`unknown format "${format}" — playwright or junit`);
+
+  const ledger = new Ledger(dbPath(values));
+  try {
+    const clock = clockFrom(values);
+    const behaviors = ledger.allRecords('behaviors') as Behavior[];
+    const clusters = clusterFailures(failures, behaviors);
+    console.log(renderTriage(report, clusters, computeHealth(ledger, clock).health));
+  } finally {
+    ledger.close();
+  }
+}
+
+function cmdQuarantine(args: string[]): void {
+  const { values, positionals } = parseArgs({
+    args,
+    options: {
+      db: { type: 'string' },
+      quarantine: { type: 'string' },
+      ticket: { type: 'string' },
+      reason: { type: 'string' },
+      days: { type: 'string' },
+      expired: { type: 'boolean', default: false },
+      now: { type: 'string' },
+      actor: { type: 'string' },
+    },
+    allowPositionals: true,
+  });
+  const [sub, testId] = positionals;
+  const qPath = quarantinePath(values);
+  const clock = clockFrom(values);
+
+  if (sub === 'list') {
+    const file = loadQuarantine(qPath);
+    const entries = values.expired ? expiredEntries(file, clock) : file.entries;
+    if (entries.length === 0) {
+      console.log(values.expired ? 'no expired quarantine entries' : 'quarantine lane is empty');
+      return;
+    }
+    for (const e of entries) {
+      const expired = new Date(e.expires_at).getTime() < clock().getTime();
+      console.log(`  ${e.test_id}  ticket ${e.ticket}  expires ${e.expires_at}${expired ? '  ⚠ EXPIRED (escalate)' : ''}`);
+    }
+    return;
+  }
+
+  if (sub === 'add') {
+    if (!testId) fail('quarantine add requires a test_id');
+    if (!values.ticket) fail('quarantine add requires --ticket (entry+ticket = ACT, SPEC §7.3)');
+    const ledger = new Ledger(dbPath(values));
+    try {
+      const gateway = new AutonomyGateway(ledger, { clock });
+      const entry = buildEntry(
+        {
+          testId,
+          ticket: values.ticket,
+          ...(values.reason !== undefined ? { reason: values.reason } : {}),
+          ...(values.days !== undefined ? { expiryDays: Number(values.days) } : {}),
+        },
+        clock,
+      );
+      const result = gateway.perform({
+        class: 'flake_quarantine',
+        target: testId,
+        summary: `quarantine ${testId} → non-blocking lane until ${entry.expires_at} (ticket ${entry.ticket})`,
+        evidence_basis: [],
+        revert: `cart quarantine remove ${testId}`,
+        execute: () => {
+          const { file } = upsertEntry(loadQuarantine(qPath), entry);
+          writeQuarantine(qPath, file);
+        },
+      });
+      if (result.tier === 'ACT') {
+        console.log(`quarantined ${testId} until ${entry.expires_at} (ticket ${entry.ticket}, receipt ${result.receipt.id})`);
+        console.log('test source untouched — CI routes this test_id into the non-blocking lane (I5)');
+      }
+    } finally {
+      ledger.close();
+    }
+    return;
+  }
+
+  if (sub === 'remove') {
+    if (!testId) fail('quarantine remove requires a test_id');
+    const { file, removed } = removeEntry(loadQuarantine(qPath), testId);
+    if (!removed) {
+      console.log(`${testId} is not in the quarantine lane`);
+      return;
+    }
+    writeQuarantine(qPath, file);
+    console.log(`removed ${testId} from the quarantine lane`);
+    return;
+  }
+
+  fail(`unknown quarantine subcommand "${sub ?? ''}" — add | remove | list`);
 }
 
 function cmdPr(args: string[]): void {
@@ -613,6 +747,10 @@ export function main(argv: string[]): void {
         return cmdAsk(argv.slice(1));
       case 'pr':
         return cmdPr(argv.slice(1));
+      case 'triage':
+        return cmdTriage(argv.slice(1));
+      case 'quarantine':
+        return cmdQuarantine(argv.slice(1));
       case 'bootstrap':
         return cmdBootstrap(argv.slice(1));
       case 'interview':
