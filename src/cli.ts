@@ -23,6 +23,8 @@ import { computeHealth, computeStatus, DEFAULT_SLA_HOURS } from './health.js';
 import { assembleAsk, renderAsk, queueGapQuestion } from './ask.js';
 import { bootstrapRepo } from './bootstrap.js';
 import { applyInterview, pendingProposals, type InterviewItem } from './interview.js';
+import { GitDiff, diffFromText } from './diff.js';
+import { assembleRiskNote, renderRiskNote, queueGaps } from './pr.js';
 import type { Behavior, Criticality, Evidence } from './types.js';
 
 const HEALTH_OK = { degraded: false } as const;
@@ -53,6 +55,8 @@ const USAGE = `cart — Cartographer behavior ledger (Phase 0)
 
   cart init                                   create ledger.db (idempotent)
   cart ask "<question>" [--queue]             the 30-second answer, evidence-cited (UNKNOWN when unmapped)
+  cart pr <ref> [--repo D | --diff F] [--queue] [--post]
+                                              risk note: behaviors this change exposes, ranked
   cart bootstrap import <repo> [--apply]      draft one unconfirmed behavior per test (preview unless --apply)
   cart interview --batch N                     list N pending proposals to confirm/edit/merge/discard
   cart interview --apply <answers.json> --person P
@@ -143,6 +147,72 @@ function cmdAsk(args: string[]): void {
     if ((!result.mapViable || result.partial) && values.queue) {
       const q = queueGapQuestion(ledger, question, actor(values), clock);
       console.log(`queued ${q.id}: "${q.prompt}" — answer it via the interview to grow the map`);
+    }
+  } finally {
+    ledger.close();
+  }
+}
+
+function cmdPr(args: string[]): void {
+  const { values, positionals } = parseArgs({
+    args,
+    options: {
+      db: { type: 'string' },
+      repo: { type: 'string' },
+      diff: { type: 'string' },
+      ref: { type: 'string' },
+      now: { type: 'string' },
+      queue: { type: 'boolean', default: false },
+      post: { type: 'boolean', default: false },
+      'post-act': { type: 'boolean', default: false },
+      actor: { type: 'string' },
+    },
+    allowPositionals: true,
+  });
+  const ref = positionals[0] ?? values.ref;
+  if (!ref) fail('usage: cart pr <ref> [--repo <dir> | --diff <file>]');
+
+  // diff source: an explicit captured diff, else git over a range
+  let diff;
+  if (values.diff) {
+    diff = diffFromText(readFileSync(values.diff, 'utf8'));
+  } else if (values.repo) {
+    // ref may be a range (main...HEAD) or a single ref we diff against HEAD's base
+    diff = new GitDiff(values.repo).diff(ref.includes('..') ? ref : `${ref}`);
+  } else {
+    fail('cart pr needs --repo <dir> (to run git diff) or --diff <file> (a captured diff)');
+  }
+
+  const ledger = new Ledger(dbPath(values));
+  try {
+    const clock = clockFrom(values);
+    const api = new QueryApi(ledger, { config: loadDecayConfig(), churn: churnFrom(values), clock });
+    const label = ref.includes('..') ? ref : `PR ${ref}`;
+    const note = assembleRiskNote(api, label, diff, computeHealth(ledger, clock).health);
+
+    if (values.queue && note.gaps.length > 0) {
+      queueGaps(ledger, note, actor(values), clock);
+    }
+    console.log(renderRiskNote(note));
+
+    // CG-5.2: posting the comment is PROPOSE by default; ACT only on opt-in
+    if (values.post || values['post-act']) {
+      const gateway = new AutonomyGateway(ledger, values['post-act'] ? { overrides: { pr_comment: 'ACT' } } : {});
+      const result = gateway.perform({
+        class: 'pr_comment',
+        target: label,
+        summary: `risk note: ${note.rows.length} behavior(s), ${note.gaps.length} gap(s)`,
+        evidence_basis: note.rows.flatMap((r) => (r.verdict.newest_evidence_id ? [r.verdict.newest_evidence_id] : [])),
+        revert: 'delete the posted comment',
+        execute: () => {
+          /* a real posting adapter (GitHub/GitLab) plugs in here — Phase 5 keeps it local */
+        },
+      });
+      if (result.tier === 'PROPOSE') {
+        console.log(`\n[comment is PROPOSE-tier: draft ready, not posted. Re-run with --post-act after the 2-week observation period to auto-post (SPEC §7.2).]`);
+      } else {
+        console.log(`\n[posted as ACT — receipt ${result.receipt.id}]`);
+      }
     }
   } finally {
     ledger.close();
@@ -541,6 +611,8 @@ export function main(argv: string[]): void {
         return fail(`unknown vault subcommand "${sub ?? ''}"\n\n${USAGE}`);
       case 'ask':
         return cmdAsk(argv.slice(1));
+      case 'pr':
+        return cmdPr(argv.slice(1));
       case 'bootstrap':
         return cmdBootstrap(argv.slice(1));
       case 'interview':

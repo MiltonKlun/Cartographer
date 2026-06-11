@@ -61,10 +61,10 @@ Goal: real CI runs become evidence.
 **Demo:** cold-start a real repo to ≥50 confirmed behaviors in one sitting. ✅ recorded in `docs/demos/phase-4.md` (2026-06-11; 50 confirmed from own suite; 126 tests green).
 
 ## Phase 5 — `cart pr` risk notes (PR 6)
-- [ ] CG-5.1 Diff → globs → behaviors → rank by `criticality × (1−F)`; new files become gap candidates + queued questions.
-- [ ] CG-5.2 Note renderer per SPEC §7.2; posting = PROPOSE (ACT opt-in flag exists but defaults off).
-- [ ] CG-5.3 **Retro-validation:** replay 2–3 historical incident PRs; the note must flag the incident's behavior — if not, fix linking before merging this phase.
-**Demo:** risk note on a real PR + the retro-validation transcript.
+- [x] CG-5.1 Diff → globs → behaviors → rank by `criticality × (1−F)`; new files become gap candidates + queued questions.
+- [x] CG-5.2 Note renderer per SPEC §7.2; posting = PROPOSE (ACT opt-in flag exists but defaults off).
+- [x] CG-5.3 **Retro-validation:** replay 2–3 historical incident PRs; the note must flag the incident's behavior — if not, fix linking before merging this phase.
+**Demo:** risk note on a real PR + the retro-validation transcript. ✅ recorded in `docs/demos/phase-5.md` (2026-06-11; 3/3 incidents flagged; 142 tests green).
 
 ## Phase 6 — `cart triage` + quarantine (PR 7)
 - [ ] CG-6.1 Failure clustering (error class + normalized locator + stack hash); deterministic classifier first, LLM residue marked `inference`.
