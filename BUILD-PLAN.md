@@ -89,9 +89,9 @@ Goal: real CI runs become evidence.
 **Demo:** 10-minute exploratory session becomes 3 reviewed proposals + evidence; an ET-Kit session sheet ingests into the same review queue. ✅ recorded in `docs/demos/phase-8.md` (2026-06-11; native session + ET-Kit import; 184 tests green).
 
 ## Phase 9 — Selector heal (PR 10)
-- [ ] CG-9.1 `guardrails.ts` per SPEC §10 (one pure function; AST diff confined to locator-string args of the allowlist).
-- [ ] CG-9.2 Heal flow: patch → guardrails → apply → re-run → green EV linked in receipt, else **auto-revert + demote to PROPOSE** (I12).
-**Demo:** heal a broken locator end-to-end with self-evidencing receipt; show a forbidden patch being refused.
+- [x] CG-9.1 `guardrails.ts` per SPEC §10 (one pure function; AST diff confined to locator-string args of the allowlist).
+- [x] CG-9.2 Heal flow: patch → guardrails → apply → re-run → green EV linked in receipt, else **auto-revert + demote to PROPOSE** (I12).
+**Demo:** heal a broken locator end-to-end with self-evidencing receipt; show a forbidden patch being refused. ✅ recorded in `docs/demos/phase-9.md` (2026-06-11; refused/reverted/healed paths; 201 tests green).
 
 ## Phase 10 — Evaluation + calibration + hardening (PR 11)
 - [ ] CG-10.1 Eval harness: golden-question set for `ask`; weekly random claim-citation audit (sample N claims ⇒ every citation resolves); triage precision vs. human labels; decline-rule check (I9).

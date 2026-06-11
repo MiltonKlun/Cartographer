@@ -59,7 +59,11 @@ questions, health footer) + `cart interview` single-question flow (the answer
 is the approval, I3). Phase 8: ride-along sessions (`cart session
 start|note|stop`, silent until stop — I8) + the ET-Kit session-sheet importer
 (`cart ingest session`, the decision-0001 seam: BUG/ISSUE→evidence,
-QUESTION→Q, IDEA→proposal, evidence redacted before vaulting). Demos:
-`docs/demos/`. Next: BUILD-PLAN Phase 9 (selector heal).
+QUESTION→Q, IDEA→proposal, evidence redacted before vaulting). Phase 9:
+selector heal — `guardrails.ts` (one pure `patchViolations`, the §10/I5
+source of truth) + the self-evidencing heal flow (`cart heal`: guardrails →
+apply → re-run → green evidence in receipt, else auto-revert + demote to
+PROPOSE, I12). Demos: `docs/demos/`. Next: BUILD-PLAN Phase 10 (evaluation +
+calibration + hardening — the final phase).
 The companion ET-Kit (exploratory testing) lives in a separate folder and
 feeds `ingest:session` from Phase 8 on — see `docs/decisions/0001`.*

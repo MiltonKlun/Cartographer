@@ -2,7 +2,7 @@
 // (renderer demo), export. Every mutation flows through the validated ledger;
 // every side effect through the autonomy gateway; every human-facing claim
 // through the claims renderer. No bypass paths.
-import { readFileSync, existsSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
 import { join, dirname as dirnameOf } from 'node:path';
 import { parseArgs } from 'node:util';
 import { Ledger } from './db.js';
@@ -33,6 +33,8 @@ import {
 import { assembleBrief, renderBrief } from './brief.js';
 import { startSession, noteSession, stopSession, renderStop, openSessionFor } from './session.js';
 import { parseSessionSheet, importSessionSheet } from './ingest-session.js';
+import { runHeal, renderHealOutcome, type HealPorts, type RerunResult } from './heal.js';
+import { patchViolations } from './guardrails.js';
 import { GitDiff, diffFromText } from './diff.js';
 import { assembleRiskNote, renderRiskNote, queueGaps } from './pr.js';
 import { clusterFailures, renderTriage } from './triage.js';
@@ -105,6 +107,10 @@ const USAGE = `cart — Cartographer behavior ledger (Phase 0)
   cart ingest session <sheet.md>               ET-Kit session sheet → evidence/questions/proposals (§6)
   cart session start|note "<text>"|stop --engineer E
                                               ride-along: silent until stop (I8), then review-queue proposals
+  cart heal <test-file> --patched F --behavior BHV-id --test "<test-id>"
+       [--rerun-passed | --rerun-failed]      locator-only heal: guardrails → apply → re-run (I12)
+  cart guardrails-check <orig-file> <patched-file> [--selector-heal]
+                                              run §10 guardrails on a patch (no apply); exit 1 if violations
   cart vault gc [--apply]                      list orphan blobs; delete only with --apply (receipted)
   cart verdict <BHV-id> [--repo <dir>]         compute + render the decayed verdict (I2)
   cart status [--sla hours]                    ingestion health, counts, verdict histogram (I6)
@@ -445,6 +451,73 @@ function cmdBootstrap(args: string[]): void {
   } finally {
     ledger.close();
   }
+}
+
+function cmdHeal(args: string[]): void {
+  const { values, positionals } = parseArgs({
+    args,
+    options: {
+      db: { type: 'string' },
+      patched: { type: 'string' },
+      behavior: { type: 'string' },
+      test: { type: 'string' },
+      'rerun-passed': { type: 'boolean', default: false },
+      'rerun-failed': { type: 'boolean', default: false },
+      now: { type: 'string' },
+    },
+    allowPositionals: true,
+  });
+  const file = positionals[0];
+  if (!file) fail('usage: cart heal <test-file> --patched <file> --behavior BHV-id --test "<id>"');
+  if (!values.patched || !values.behavior || !values.test) {
+    fail('cart heal requires --patched <file>, --behavior <BHV-id>, --test "<test-id>"');
+  }
+  if (!existsSync(file)) fail(`no such file: ${file}`);
+  if (!existsSync(values.patched)) fail(`no such patched file: ${values.patched}`);
+
+  const originalSource = readFileSync(file, 'utf8');
+  const patchedSource = readFileSync(values.patched, 'utf8');
+  const clock = clockFrom(values);
+
+  // the re-run port: a real runner plugs in here; the flags drive the demo/CI
+  const passed = values['rerun-passed'] || !values['rerun-failed'];
+  const ports: HealPorts = {
+    applyPatch: (target, source) => writeFileSync(target, source, 'utf8'),
+    rerun: (): RerunResult => ({ passed, ref: `local-heal-${isoNow(clock)}` }),
+  };
+
+  const ledger = new Ledger(dbPath(values));
+  try {
+    const gateway = new AutonomyGateway(ledger, { clock });
+    const proposal = { file, behaviorId: values.behavior, testId: values.test, originalSource, patchedSource };
+    const outcome = runHeal(ledger, gateway, proposal, ports, clock);
+    console.log(renderHealOutcome(proposal, outcome));
+    if (outcome.status === 'rejected') process.exit(1);
+  } finally {
+    ledger.close();
+  }
+}
+
+function cmdGuardrailsCheck(args: string[]): void {
+  const { values, positionals } = parseArgs({
+    args,
+    options: { 'selector-heal': { type: 'boolean', default: false } },
+    allowPositionals: true,
+  });
+  const [orig, patched] = positionals;
+  if (!orig || !patched) fail('usage: cart guardrails-check <orig-file> <patched-file> [--selector-heal]');
+  const violations = patchViolations(
+    readFileSync(orig, 'utf8'),
+    readFileSync(patched, 'utf8'),
+    values['selector-heal'] ? { mode: 'selector_heal' } : {},
+  );
+  if (violations.length === 0) {
+    console.log('guardrails: clean — patch is allowed under §10');
+    return;
+  }
+  console.error(`guardrails: ${violations.length} violation(s) — patch REFUSED (I5):`);
+  for (const v of violations) console.error(`  ✗ ${v.kind}: ${v.detail}`);
+  process.exit(1);
 }
 
 function cmdSession(args: string[]): void {
@@ -934,6 +1007,10 @@ export function main(argv: string[]): void {
         return cmdBootstrap(argv.slice(1));
       case 'session':
         return cmdSession(argv.slice(1));
+      case 'heal':
+        return cmdHeal(argv.slice(1));
+      case 'guardrails-check':
+        return cmdGuardrailsCheck(argv.slice(1));
       case 'brief':
         return cmdBrief(argv.slice(1));
       case 'interview':
