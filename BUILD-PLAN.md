@@ -83,10 +83,10 @@ Goal: real CI runs become evidence.
 > Phase 8 is therefore primarily the ingestion *back end*: CG-8.1 stays
 > minimal (manual notes; Playwright capture only if cheap), and CG-8.3 makes
 > ET-Kit debriefs land in the ledger.
-- [ ] CG-8.1 `session start|note|stop`: passive capture (Playwright events when available, manual notes otherwise), auto-screenshot on nav; **silent until stop** (I8).
-- [ ] CG-8.2 Stop → proposals (behaviors, candidate tests, questions) into a review queue; nothing merges unreviewed.
-- [ ] CG-8.3 ET-Kit session-sheet importer for `ingest:session` (SPEC §6 mapping: BUG/ISSUE → EV, QUESTION → Q, IDEA → proposals; evidence files through redaction).
-**Demo:** 10-minute exploratory session becomes 3 reviewed proposals + evidence; an ET-Kit session sheet ingests into the same review queue.
+- [x] CG-8.1 `session start|note|stop`: passive capture (Playwright events when available, manual notes otherwise), auto-screenshot on nav; **silent until stop** (I8).
+- [x] CG-8.2 Stop → proposals (behaviors, candidate tests, questions) into a review queue; nothing merges unreviewed.
+- [x] CG-8.3 ET-Kit session-sheet importer for `ingest:session` (SPEC §6 mapping: BUG/ISSUE → EV, QUESTION → Q, IDEA → proposals; evidence files through redaction).
+**Demo:** 10-minute exploratory session becomes 3 reviewed proposals + evidence; an ET-Kit session sheet ingests into the same review queue. ✅ recorded in `docs/demos/phase-8.md` (2026-06-11; native session + ET-Kit import; 184 tests green).
 
 ## Phase 9 — Selector heal (PR 10)
 - [ ] CG-9.1 `guardrails.ts` per SPEC §10 (one pure function; AST diff confined to locator-string args of the allowlist).

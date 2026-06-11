@@ -3,7 +3,7 @@
 // every side effect through the autonomy gateway; every human-facing claim
 // through the claims renderer. No bypass paths.
 import { readFileSync, existsSync, unlinkSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname as dirnameOf } from 'node:path';
 import { parseArgs } from 'node:util';
 import { Ledger } from './db.js';
 import { AutonomyGateway } from './autonomy.js';
@@ -31,6 +31,8 @@ import {
   type QuestionAnswer,
 } from './interview.js';
 import { assembleBrief, renderBrief } from './brief.js';
+import { startSession, noteSession, stopSession, renderStop, openSessionFor } from './session.js';
+import { parseSessionSheet, importSessionSheet } from './ingest-session.js';
 import { GitDiff, diffFromText } from './diff.js';
 import { assembleRiskNote, renderRiskNote, queueGaps } from './pr.js';
 import { clusterFailures, renderTriage } from './triage.js';
@@ -100,6 +102,9 @@ const USAGE = `cart — Cartographer behavior ledger (Phase 0)
   cart export [--out export/ledger.jsonl]     deterministic JSONL export (ACT, receipted)
   cart ingest playwright <report.json> [--ref R]
   cart ingest junit <report.xml> [--ref R]     CI results → evidence (redacted, linked, deduped)
+  cart ingest session <sheet.md>               ET-Kit session sheet → evidence/questions/proposals (§6)
+  cart session start|note "<text>"|stop --engineer E
+                                              ride-along: silent until stop (I8), then review-queue proposals
   cart vault gc [--apply]                      list orphan blobs; delete only with --apply (receipted)
   cart verdict <BHV-id> [--repo <dir>]         compute + render the decayed verdict (I2)
   cart status [--sla hours]                    ingestion health, counts, verdict histogram (I6)
@@ -117,11 +122,41 @@ function cmdIngest(args: string[]): void {
       db: { type: 'string' },
       vault: { type: 'string' },
       ref: { type: 'string' },
+      now: { type: 'string' },
     },
     allowPositionals: true,
   });
   const [format, file] = positionals;
-  if (!format || !file) fail('usage: cart ingest <playwright|junit> <report> [--ref R]');
+  if (!format || !file) fail('usage: cart ingest <playwright|junit|session> <report|sheet> [--ref R]');
+  if (!existsSync(file)) fail(`no such file: ${file}`);
+
+  // ET-Kit session sheets have their own pipeline (evidence + Q + proposals)
+  if (format === 'session') {
+    const ledger = new Ledger(dbPath(values));
+    try {
+      const gateway = new AutonomyGateway(ledger, { clock: clockFrom(values) });
+      const sheet = parseSessionSheet(readFileSync(file, 'utf8'));
+      const summary = importSessionSheet(ledger, gateway, sheet, {
+        vaultRoot: vaultRoot(values),
+        rules: loadRedactionRules(),
+        baseDir: dirnameOf(file),
+        clock: clockFrom(values),
+      });
+      console.log(
+        `imported ET-Kit sheet → session ${summary.sessionId}: ` +
+          `${summary.evidenceCreated.length} evidence, ${summary.questionsQueued.length} question(s), ` +
+          `${summary.ideaProposals.length} idea(s) — receipt ${summary.receiptId}`,
+      );
+      if (summary.evidenceCreated.length) console.log(`  evidence: ${summary.evidenceCreated.join(', ')}`);
+      if (summary.questionsQueued.length) console.log(`  questions: ${summary.questionsQueued.join(', ')}`);
+      if (summary.quarantined.length) console.log(`  quarantined (I10): ${summary.quarantined.join(', ')}`);
+      console.log('  nothing merged into the map — review proposals + answer questions (I3)');
+    } finally {
+      ledger.close();
+    }
+    return;
+  }
+
   const parseOpts = {
     ...(values.ref !== undefined ? { ref: values.ref } : {}),
     fallbackObservedAt: isoNow(systemClock),
@@ -129,7 +164,7 @@ function cmdIngest(args: string[]): void {
   let candidates;
   if (format === 'playwright') candidates = parsePlaywrightReport(file, parseOpts);
   else if (format === 'junit') candidates = parseJunitReport(file, parseOpts);
-  else return fail(`unknown ingest format "${format}" — playwright or junit`);
+  else return fail(`unknown ingest format "${format}" — playwright, junit, or session`);
 
   const ledger = new Ledger(dbPath(values));
   try {
@@ -407,6 +442,58 @@ function cmdBootstrap(args: string[]): void {
       for (const d of drafts) ledger.insertBehavior(d.behavior, who);
     });
     console.log(`wrote ${drafts.length} unconfirmed proposal(s). Next: cart interview --batch 20`);
+  } finally {
+    ledger.close();
+  }
+}
+
+function cmdSession(args: string[]): void {
+  const { values, positionals } = parseArgs({
+    args,
+    options: {
+      db: { type: 'string' },
+      engineer: { type: 'string' },
+      auto: { type: 'boolean', default: false },
+      'evidence-id': { type: 'string' },
+      now: { type: 'string' },
+    },
+    allowPositionals: true,
+  });
+  const sub = positionals[0];
+  const engineer = values.engineer ?? process.env['CART_ENGINEER'];
+  if (!engineer) fail('cart session requires --engineer <name> (attribution, I11)');
+  const ledger = new Ledger(dbPath(values));
+  const clock = clockFrom(values);
+  try {
+    switch (sub) {
+      case 'start': {
+        const s = startSession(ledger, engineer, clock);
+        console.log(`session ${s.id} started for ${engineer} — observing silently until stop (I8)`);
+        console.log('  add notes:  cart session note "<observation>" --engineer ' + engineer);
+        return;
+      }
+      case 'note': {
+        const note = positionals.slice(1).join(' ').trim();
+        if (!note) fail('cart session note requires text');
+        noteSession(
+          ledger,
+          engineer,
+          { note, auto: values.auto, ...(values['evidence-id'] !== undefined ? { evidenceId: values['evidence-id'] } : {}) },
+          clock,
+        );
+        // silent by design (I8): a bare confirmation, no analysis
+        const open = openSessionFor(ledger, engineer);
+        console.log(`noted (${open?.observations?.length ?? 0} so far). Silent until stop.`);
+        return;
+      }
+      case 'stop': {
+        const result = stopSession(ledger, engineer, clock);
+        console.log(renderStop(result));
+        return;
+      }
+      default:
+        return fail('usage: cart session start|note "<text>"|stop --engineer <name>');
+    }
   } finally {
     ledger.close();
   }
@@ -845,6 +932,8 @@ export function main(argv: string[]): void {
         return cmdQuarantine(argv.slice(1));
       case 'bootstrap':
         return cmdBootstrap(argv.slice(1));
+      case 'session':
+        return cmdSession(argv.slice(1));
       case 'brief':
         return cmdBrief(argv.slice(1));
       case 'interview':

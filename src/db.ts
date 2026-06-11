@@ -267,6 +267,28 @@ export class Ledger {
     });
   }
 
+  getSession(id: string): Session | undefined {
+    const row = this.db.prepare('SELECT json FROM sessions WHERE id = ?').get(id) as
+      | { json: string }
+      | undefined;
+    return row ? (JSON.parse(row.json) as Session) : undefined;
+  }
+
+  updateSession(id: string, change: (old: Session) => Session, actor: string): Session {
+    const old = this.getSession(id);
+    if (!old) throw new Error(`no such session: ${id}`);
+    const next = change(structuredClone(old));
+    if (next.id !== id) throw new Error('session id is immutable');
+    assertValid('session', next);
+    return this.transaction(() => {
+      this.db
+        .prepare('UPDATE sessions SET status = ?, json = ? WHERE id = ?')
+        .run(next.status, JSON.stringify(next), id);
+      this.logMutation(actor, 'sessions', id, { old, new: next });
+      return next;
+    });
+  }
+
   // -- reads --
 
   getBehavior(id: string): Behavior | undefined {

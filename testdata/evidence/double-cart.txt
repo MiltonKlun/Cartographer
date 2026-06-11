@@ -1,0 +1,1 @@
+Reproduced: clicked Apply twice within 200ms. Two carts created (cart_id 8841, 8842).

@@ -56,7 +56,10 @@ residue labeled `inference`), and the `quarantine.json` non-blocking lane
 Phase 7: `cart brief` (one-screen morning brief — overnight verdict
 transitions via snapshot diff, decayed-red, quarantine expiries, top
 questions, health footer) + `cart interview` single-question flow (the answer
-is the approval, I3). Demos: `docs/demos/`. Next: BUILD-PLAN Phase 8
-(ride-along sessions + ET-Kit sheet ingestion).
+is the approval, I3). Phase 8: ride-along sessions (`cart session
+start|note|stop`, silent until stop — I8) + the ET-Kit session-sheet importer
+(`cart ingest session`, the decision-0001 seam: BUG/ISSUE→evidence,
+QUESTION→Q, IDEA→proposal, evidence redacted before vaulting). Demos:
+`docs/demos/`. Next: BUILD-PLAN Phase 9 (selector heal).
 The companion ET-Kit (exploratory testing) lives in a separate folder and
 feeds `ingest:session` from Phase 8 on — see `docs/decisions/0001`.*
