@@ -40,14 +40,18 @@ the fixes, on a repo we did not author. ✅ (2026-06-15; 237 tests green).
 
 ## Phase V2 — Self-CI + dogfooding (PR 2)
 Goal: the tool that consumes CI gets CI, and ingests its own results.
-- [ ] V2.1 `.github/workflows/ci.yml`: `npm run check` on push/PR (Node 22).
-- [ ] V2.2 A `cart`-dogfood job: after tests pass, run `cart ingest junit`
+- [x] V2.1 `.github/workflows/ci.yml`: `npm run check` on push/PR (Node 22).
+- [x] V2.2 A `cart`-dogfood job: after tests pass, run `cart ingest junit`
       on Cartographer's own test results into a committed-or-artifact ledger;
-      prove the ingestion pipeline runs unattended.
-- [ ] V2.3 `cart guardrails-check` wired as a CI gate on changed test files
-      (the §10 function is already exit-1-on-violation).
-**Demo:** `docs/demos/v2-self-ci.md` — a green CI run link/log + the dogfood
-job's `cart status` output.
+      prove the ingestion pipeline runs unattended. → 237 testcases → 237
+      evidence; honest finding logged (node:test JUnit `classname` vs bootstrap
+      `test_id` mismatch → low linkage; not a bug, an adapter-format note).
+- [x] V2.3 `cart guardrails-check` wired as a CI gate on changed test files
+      (the §10 function is already exit-1-on-violation). → rehearsed
+      positive (clean) + negative (test-deletion refused).
+**Demo:** `docs/demos/v2-self-ci.md` — the workflow + the dogfood `cart status`
+output + the gate rehearsal. ✅ (2026-06-15; no source changes — surfaces were
+already CI-ready; 237 tests green).
 
 ## Phase V3 — Live LLM rim (PR 3)
 Goal: activate the probabilistic rim the README promises, without breaking

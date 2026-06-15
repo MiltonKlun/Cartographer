@@ -1,0 +1,86 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  # V2.1 — the DoD gate: typecheck + lint + tests + schema validation.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+
+  # V2.3 — guardrails gate: every test file changed in a PR is run through
+  # the §10 patchViolations function (test deletion, .skip/.fixme/.only,
+  # assertion weakening, expected-value changes). Same code as the unit tests
+  # and the heal flow — one source of truth (I5). Non-blocking on push (no
+  # base to diff); enforced on PRs.
+  guardrails-gate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: guardrails-check changed test files
+        run: |
+          base="origin/${{ github.base_ref }}"
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          changed=$(git diff --name-only "$base"...HEAD -- '*.test.ts' || true)
+          if [ -z "$changed" ]; then echo "no test files changed"; exit 0; fi
+          status=0
+          for f in $changed; do
+            # compare each changed test file against its base version
+            if git show "$base:$f" > /tmp/base.ts 2>/dev/null; then
+              echo "guardrails-check $f"
+              node bin/cart.mjs guardrails-check /tmp/base.ts "$f" || status=1
+            else
+              echo "new test file (no base): $f — skipping"
+            fi
+          done
+          exit $status
+
+  # V2.2 — dogfooding: after the suite passes, emit a JUnit report of
+  # Cartographer's OWN tests and ingest it into a fresh ledger. Proves the
+  # ingestion pipeline runs unattended on real (its own) CI output, and that
+  # `cart status` renders a real ingestion's health. The ledger is an
+  # artifact, not committed (it's derived state).
+  dogfood:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: run tests → JUnit report
+        run: node --test --test-reporter=junit --test-reporter-destination=cart-tests.xml "dist/test/**/*.test.js" || true
+      - name: ingest own results + show status
+        env:
+          CART_DB: ${{ runner.temp }}/dogfood.db
+          CART_VAULT: ${{ runner.temp }}/dogfood-vault
+        run: |
+          node bin/cart.mjs init
+          node bin/cart.mjs ingest junit cart-tests.xml --ref "ci-${{ github.run_number }}"
+          node bin/cart.mjs status
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dogfood-junit
+          path: cart-tests.xml
