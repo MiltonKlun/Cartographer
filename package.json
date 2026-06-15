@@ -15,7 +15,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "node scripts/lint.mjs",
     "pretest": "npm run build",
-    "test": "node --test \"dist/**/*.test.js\"",
+    "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "test:unit": "node --test \"dist/test/unit/**/*.test.js\"",
+    "test:integration": "node --test \"dist/test/integration/**/*.test.js\"",
+    "test:e2e": "node --test \"dist/test/e2e/**/*.test.js\"",
     "validate:schemas": "node scripts/validate-schemas.mjs",
     "check": "npm run typecheck && npm run lint && npm run test && npm run validate:schemas"
   },
