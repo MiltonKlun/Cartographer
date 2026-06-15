@@ -79,6 +79,15 @@ test('I11: the mutations log is append-only at the SQL level', () => {
   assert.throws(() => ledger.rawExec('DELETE FROM mutations'), /append-only/);
 });
 
+test('I11: row-level triggers — DELETE on an EMPTY mutations table is a no-op (zero rows, zero firings)', () => {
+  // documents the audit edge case: probing an empty table sees DELETE
+  // "succeed" because nothing is deleted. The guarantee is per committed row.
+  const ledger = new Ledger(tempDbPath(), { clock });
+  assert.doesNotThrow(() => ledger.rawExec('DELETE FROM mutations')); // empty ⇒ no firing
+  ledger.insertBehavior(makeBehavior(1), 'ana'); // now a row exists
+  assert.throws(() => ledger.rawExec('DELETE FROM mutations'), /append-only/);
+});
+
 test('evidence is immutable at the SQL level (corrections supersede)', () => {
   const ledger = new Ledger(tempDbPath(), { clock });
   ledger.insertEvidence(exampleEvidence(), 'ingest:test');

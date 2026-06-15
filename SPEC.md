@@ -186,8 +186,13 @@ anything less (I2).
 - `vault/`: content-addressed blobs `vault/sha256/<2-char>/<hash>`; never
   mutated; orphan-sweep only via explicit `cart vault gc` with receipt.
 - `cart export` → `export/ledger.jsonl` (one record per line, stable key
-  order) — deterministic given identical DB state (tested), for diff/review
-  and for the I11 inspectability guarantee.
+  order) — the `exportLedger()` function is deterministic given identical DB
+  state (tested), for diff/review and for the I11 inspectability guarantee.
+  Note: `cart export` is an `ACT` and records its own receipt + mutation, so
+  two *consecutive* receipted exports differ by exactly that one receipt. For
+  pure, byte-identical snapshots (diff, review, reproducible backup) use
+  `cart export --no-receipt`, which writes the file without mutating the
+  ledger. The receipted default keeps export in the audit trail (I4).
 
 ## 6. Ingestion contracts
 

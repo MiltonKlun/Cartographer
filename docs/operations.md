@@ -21,14 +21,17 @@ diffable daily snapshot.
 
 ```bash
 # nightly (after CI ingestion + the morning brief)
-cart brief            # writes today's verdict snapshot
-cart export --out "backups/ledger-$(date +%F).jsonl"
+cart brief                          # writes today's verdict snapshot
+cart export --no-receipt --out "backups/ledger-$(date +%F).jsonl"
 cp -r vault "backups/vault-$(date +%F)"
 ```
 
-The JSONL is deterministic (stable key order, tested), so two snapshots of an
+Use `--no-receipt` for backups and any diff/review: the export then writes the
+snapshot **without recording its own receipt**, so two snapshots of an
 unchanged ledger are byte-identical and a `git diff` between days shows exactly
-what moved.
+what moved. (Plain `cart export`, the receipted default, adds one receipt per
+run for the audit trail — so consecutive plain exports differ by that receipt.
+Don't use it where you need reproducible bytes.)
 
 ## Restore drill
 

@@ -54,6 +54,13 @@ const MIGRATIONS: Migration[] = [
   {
     version: 2,
     name: 'immutability-triggers',
+    // NOTE: these are row-level BEFORE triggers — they fire once per affected
+    // row. A `DELETE FROM <table>` against an *empty* table therefore raises
+    // nothing (zero rows ⇒ zero firings). That is correct: an empty table has
+    // no records to protect. The guarantee is "no committed row is ever
+    // mutated or deleted", which row-level triggers enforce exactly. Audits
+    // that probe an empty table will see a no-op DELETE "succeed" — verify
+    // against a table that actually has rows (see db.test.ts).
     sql: `
       CREATE TRIGGER mutations_no_update BEFORE UPDATE ON mutations
         BEGIN SELECT RAISE(ABORT, 'mutations log is append-only (I11)'); END;

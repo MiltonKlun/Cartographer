@@ -103,7 +103,8 @@ const USAGE = `cart — Cartographer behavior ledger (Phase 0)
   cart validate <type> <file.json>            validate a record against its schema
   cart claim --text T [--cite ID,ID] [--inference] [--unknown]
                                               render a claim (refused without citations — I1)
-  cart export [--out export/ledger.jsonl]     deterministic JSONL export (ACT, receipted)
+  cart export [--out export/ledger.jsonl] [--no-receipt]
+                                              deterministic JSONL export (receipted ACT; --no-receipt = pure snapshot)
   cart ingest playwright <report.json> [--ref R]
   cart ingest junit <report.xml> [--ref R]     CI results → evidence (redacted, linked, deduped)
   cart ingest session <sheet.md>               ET-Kit session sheet → evidence/questions/proposals (§6)
@@ -978,11 +979,26 @@ function cmdClaim(args: string[]): void {
 function cmdExport(args: string[]): void {
   const { values } = parseArgs({
     args,
-    options: { db: { type: 'string' }, out: { type: 'string' } },
+    options: {
+      db: { type: 'string' },
+      out: { type: 'string' },
+      'no-receipt': { type: 'boolean', default: false },
+    },
   });
   const outPath = values.out ?? join(process.cwd(), 'export', 'ledger.jsonl');
   const ledger = new Ledger(dbPath(values));
   try {
+    // --no-receipt: a pure read-only snapshot. The export does NOT write its
+    // own receipt/mutation, so two snapshots of an unchanged ledger are
+    // byte-identical (the determinism guarantee, SPEC §5). Use for diffing,
+    // review, and reproducible backups. The default (receipted) path keeps the
+    // export in the audit trail (I4) — at the cost that back-to-back receipted
+    // exports differ by exactly that one receipt.
+    if (values['no-receipt']) {
+      const { records } = exportLedgerToFile(ledger, outPath);
+      console.log(`exported ${records} records to ${outPath} (no receipt — pure snapshot)`);
+      return;
+    }
     const gateway = new AutonomyGateway(ledger);
     let records = 0;
     const result = gateway.perform({
