@@ -449,10 +449,21 @@ function cmdBootstrap(args: string[]): void {
     }
 
     const who = actor(values);
-    ledger.transaction(() => {
-      for (const d of drafts) ledger.insertBehavior(d.behavior, who);
-    });
-    console.log(`wrote ${drafts.length} unconfirmed proposal(s). Next: cart interview --batch 20`);
+    // insert per-record so one malformed proposal (terse/parameterized real
+    // test titles do occur) is skipped-and-reported, never aborting the batch
+    let wrote = 0;
+    const skipped: string[] = [];
+    for (const d of drafts) {
+      try {
+        ledger.insertBehavior(d.behavior, who);
+        wrote++;
+      } catch (err) {
+        skipped.push(`${d.source.testId}: ${err instanceof Error ? err.message.split('\n')[0] : String(err)}`);
+      }
+    }
+    console.log(`wrote ${wrote} unconfirmed proposal(s)${skipped.length ? `, skipped ${skipped.length} un-draftable` : ''}. Next: cart interview --batch 20`);
+    for (const s of skipped.slice(0, 10)) console.log(`  skipped ${s}`);
+    if (skipped.length > 10) console.log(`  … and ${skipped.length - 10} more skipped`);
   } finally {
     ledger.close();
   }

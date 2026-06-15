@@ -88,3 +88,46 @@ test('discoverTestFiles finds spec and test files, sorted', () => {
   writeFileSync(join(repo, 'readme.md'), `not a test`);
   assert.deepEqual(discoverTestFiles(repo), ['a.spec.ts', 'b.test.js']);
 });
+
+// --- regressions from V1 real-repo validation (got: test/cache.ts etc.) ---
+
+test('V1: discovers UN-suffixed files under a test/ dir (AVA/Mocha convention)', () => {
+  // got names files test/cache.ts, NOT cache.test.ts — the default globs
+  // missed this entirely, silently scanning 0 files on a real repo.
+  const repo = mkdtempSync(join(tmpdir(), 'cart-repo-'));
+  mkdirSync(join(repo, 'test'), { recursive: true });
+  writeFileSync(join(repo, 'test', 'cache.ts'), `test('caches responses', () => {});`);
+  writeFileSync(join(repo, 'test', 'helpers.ts'), `export const h = 1;`); // a helper, not a test
+  const found = discoverTestFiles(repo);
+  assert.ok(found.includes('test/cache.ts'), 'must find test/cache.ts');
+  assert.ok(!found.includes('test/helpers.ts'), 'must skip helpers under test/');
+});
+
+test('V1: areaFromPath strips a bare source extension (test/timeout.ts → timeout)', () => {
+  // previously returned "timeout.ts" because the stripper only knew .spec/.test
+  assert.equal(areaFromPath('test/timeout.ts'), 'timeout');
+  assert.equal(areaFromPath('test/cache.ts'), 'cache');
+});
+
+test('V1: a too-short title is qualified with its area, not left schema-invalid', () => {
+  // got has titles like "blah" and "[2]" — these must still yield a VALID,
+  // >=8-char statement so one bad title cannot abort the whole import.
+  const short = statementFromTitle('blah', 'cookies');
+  assert.ok(short.length >= 8, `expected a valid statement, got ${JSON.stringify(short)}`);
+  assert.match(short, /cookies/);
+});
+
+test('V1: draftBehaviors only emits schema-valid statements for terse real titles', () => {
+  let n = 0;
+  const nextId = (): string => `BHV-${String(++n).padStart(4, '0')}`;
+  const drafts = draftBehaviors(
+    [
+      { testId: 'test/cookies.ts::blah', title: 'blah', file: 'test/cookies.ts', existingBhv: null },
+      { testId: 'test/pagination.ts::[2]', title: '[2]', file: 'test/pagination.ts', existingBhv: null },
+    ],
+    nextId,
+  );
+  for (const d of drafts) {
+    assert.ok(d.behavior.statement.length >= 8, `draft statement too short: ${JSON.stringify(d.behavior.statement)}`);
+  }
+});
