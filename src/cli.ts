@@ -20,7 +20,8 @@ import { isoNow, systemClock, fixedClock, type Clock } from './clock.js';
 import { computeVerdict, loadDecayConfig } from './decay.js';
 import { GitChurnIndex, NullChurnIndex } from './churn.js';
 import { computeHealth, computeStatus, DEFAULT_SLA_HOURS } from './health.js';
-import { assembleAsk, renderAsk, queueGapQuestion } from './ask.js';
+import { assembleAsk, renderAsk, renderAskWithProse, queueGapQuestion } from './ask.js';
+import { AnthropicRimAdapter, NullRimAdapter, type RimAdapter } from './rim.js';
 import { bootstrapRepo } from './bootstrap.js';
 import {
   applyInterview,
@@ -78,7 +79,7 @@ function fail(message: string): never {
 const USAGE = `cart — Cartographer behavior ledger (Phase 0)
 
   cart init                                   create ledger.db (idempotent)
-  cart ask "<question>" [--queue]             the 30-second answer, evidence-cited (UNKNOWN when unmapped)
+  cart ask "<question>" [--queue] [--prose]   the 30-second answer, evidence-cited (--prose adds an LLM summary)
   cart pr <ref> [--repo D | --diff F] [--queue] [--post]
                                               risk note: behaviors this change exposes, ranked
   cart triage <report> [--format playwright|junit]
@@ -198,7 +199,7 @@ function cmdIngest(args: string[]): void {
   }
 }
 
-function cmdAsk(args: string[]): void {
+async function cmdAsk(args: string[]): Promise<void> {
   const { values, positionals } = parseArgs({
     args,
     options: {
@@ -206,18 +207,25 @@ function cmdAsk(args: string[]): void {
       repo: { type: 'string' },
       now: { type: 'string' },
       queue: { type: 'boolean', default: false },
+      prose: { type: 'boolean', default: false },
       actor: { type: 'string' },
     },
     allowPositionals: true,
   });
   const question = positionals.join(' ').trim();
-  if (!question) fail('usage: cart ask "<question>" [--queue]');
+  if (!question) fail('usage: cart ask "<question>" [--queue] [--prose]');
   const ledger = new Ledger(dbPath(values));
   try {
     const clock = clockFrom(values);
     const api = new QueryApi(ledger, { config: loadDecayConfig(), churn: churnFrom(values), clock });
     const result = assembleAsk(api, question);
-    console.log(renderAsk(result));
+    // --prose opts into the LLM rim (needs ANTHROPIC_API_KEY); default and any
+    // failure fall back to the deterministic rows-only render (SPEC §12)
+    const rim: RimAdapter = values.prose ? new AnthropicRimAdapter() : new NullRimAdapter();
+    if (values.prose && !rim.available()) {
+      console.error('cart: --prose needs ANTHROPIC_API_KEY (falling back to rows-only)');
+    }
+    console.log(await renderAskWithProse(result, rim));
     if ((!result.mapViable || result.partial) && values.queue) {
       const q = queueGapQuestion(ledger, question, actor(values), clock);
       console.log(`queued ${q.id}: "${q.prompt}" — answer it via the interview to grow the map`);
@@ -1030,7 +1038,7 @@ function cmdExport(args: string[]): void {
   }
 }
 
-export function main(argv: string[]): void {
+export async function main(argv: string[]): Promise<void> {
   const [command, sub, ...rest] = argv;
   try {
     switch (command) {
@@ -1053,7 +1061,7 @@ export function main(argv: string[]): void {
         if (sub === 'gc') return cmdVaultGc(rest);
         return fail(`unknown vault subcommand "${sub ?? ''}"\n\n${USAGE}`);
       case 'ask':
-        return cmdAsk(argv.slice(1));
+        return await cmdAsk(argv.slice(1));
       case 'pr':
         return cmdPr(argv.slice(1));
       case 'triage':

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Ledger } from '../../db.js';
 import { QueryApi } from '../../query.js';
-import { assembleAsk, renderAsk, queueGapQuestion, type AskRow } from '../../ask.js';
+import { assembleAsk, renderAsk, renderAskWithProse, queueGapQuestion, type AskRow } from '../../ask.js';
 import { NullRimAdapter, type RimAdapter } from '../../rim.js';
 import { loadDecayConfig } from '../../decay.js';
 import { NullChurnIndex } from '../../churn.js';
@@ -139,12 +139,12 @@ test('--queue files a Q record with why_asked, not a guessed behavior (I3)', () 
   assert.equal((ledger.allRecords('behaviors') as Behavior[]).length, 3, 'no behavior invented');
 });
 
-test('CG-3.3: rows-only output is complete without any LLM', () => {
+test('CG-3.3: rows-only output is complete without any LLM', async () => {
   const { api } = seeded();
   const result = assembleAsk(api, 'do we test coupons?');
   const rim = new NullRimAdapter();
   assert.equal(rim.available(), false);
-  assert.equal(rim.proseOverRows(), undefined);
+  assert.equal(await rim.proseOverRows(), undefined);
   // the surface renders fully from rows alone
   const out = renderAsk(result);
   assert.ok(out.includes('VIOLATED') && out.includes('VERIFIED'));
@@ -172,18 +172,70 @@ test('AskRow carries only plain data — no ledger handle, no methods (Constitut
   }
 });
 
-test('the rim adapter is only ever handed rows (spy confirms the call shape)', () => {
+test('the rim adapter is only ever handed rows (spy confirms the call shape)', async () => {
   const seen: AskRow[][] = [];
   const spyRim: RimAdapter = {
     available: () => true,
-    proseOverRows: (_q, rows) => {
+    proseOverRows: async (_q, rows) => {
       seen.push(rows);
       return 'prose';
     },
   };
   const { api } = seeded();
   const result = assembleAsk(api, 'do we test coupons?');
-  spyRim.proseOverRows(result.question, result.rows);
+  await spyRim.proseOverRows(result.question, result.rows);
   assert.equal(seen.length, 1);
   assert.deepEqual(seen[0], result.rows);
+});
+
+// ---- V3.2/V3.3: the prose pass over rows ----
+
+/** A rim that returns whatever prose the test specifies. */
+function fixedRim(prose: string | undefined, available = true): RimAdapter {
+  return { available: () => available, proseOverRows: async () => prose };
+}
+
+test('V3.2: faithful prose is prepended; the rows-only render is always preserved', async () => {
+  const { api } = seeded();
+  const result = assembleAsk(api, 'do we test coupons?');
+  const rim = fixedRim('Coupon-before-tax is currently VIOLATED (BHV-0002, EV-0002).');
+  const out = await renderAskWithProse(result, rim);
+  assert.match(out, /^Coupon-before-tax is currently VIOLATED/);
+  // the canonical rows-only output still follows the prose, intact
+  assert.match(out, /BHV-0002 .*VIOLATED/s);
+  assert.ok(out.includes(renderAsk(result)), 'rows-only render must be present verbatim');
+});
+
+test('V3.3: prose citing an unknown id is DISCARDED — output is exactly rows-only (I1)', async () => {
+  const { api } = seeded();
+  const result = assembleAsk(api, 'do we test coupons?');
+  // the LLM hallucinated BHV-9999, which is not in the rows
+  const rim = fixedRim('Also, gift cards are covered by BHV-9999.');
+  const out = await renderAskWithProse(result, rim);
+  assert.equal(out, renderAsk(result), 'unfaithful prose must be dropped entirely');
+  assert.ok(!out.includes('BHV-9999'));
+});
+
+test('V3.2: an unavailable rim yields exactly the rows-only render (SPEC §12)', async () => {
+  const { api } = seeded();
+  const result = assembleAsk(api, 'do we test coupons?');
+  const out = await renderAskWithProse(result, new NullRimAdapter());
+  assert.equal(out, renderAsk(result));
+});
+
+test('V3.2: a declining/erroring rim (undefined) yields exactly rows-only', async () => {
+  const { api } = seeded();
+  const result = assembleAsk(api, 'do we test coupons?');
+  const out = await renderAskWithProse(result, fixedRim(undefined));
+  assert.equal(out, renderAsk(result));
+});
+
+test('V3.2: an unmapped question never calls the rim (no rows to summarize)', async () => {
+  const { api } = seeded();
+  const result = assembleAsk(api, 'do we test gift card refunds?');
+  let called = false;
+  const rim: RimAdapter = { available: () => true, proseOverRows: async () => { called = true; return 'x'; } };
+  const out = await renderAskWithProse(result, rim);
+  assert.equal(called, false, 'no rows ⇒ rim is not consulted');
+  assert.equal(out, renderAsk(result));
 });

@@ -56,17 +56,21 @@ already CI-ready; 237 tests green).
 ## Phase V3 — Live LLM rim (PR 3)
 Goal: activate the probabilistic rim the README promises, without breaking
 the zero-dependency rule or any invariant.
-- [ ] V3.1 `AnthropicRimAdapter implements RimAdapter` using the built-in
+- [x] V3.1 `AnthropicRimAdapter implements RimAdapter` using the built-in
       `fetch` (no SDK — dependency policy holds). Reads `ANTHROPIC_API_KEY`
       from env; absent ⇒ falls back to `NullRimAdapter` (rows-only, SPEC §12).
-- [ ] V3.2 Wire the prose pass into `cart ask` (and only `ask` first):
+      → never-throws (non-200/refusal/network → undefined); model claude-opus-4-8.
+- [x] V3.2 Wire the prose pass into `cart ask` (and only `ask` first):
       structured rows in → prose over rows out. The rim still gets **rows
       only** (Constitution §1); a prose pass that drops/contradicts a cited
       row is rejected (the renderer remains the source of truth, I1).
-- [ ] V3.3 Eval guard: a golden check that the prose never introduces an
+      → `renderAskWithProse`; `--prose` opt-in; `toRimRows` projection.
+- [x] V3.3 Eval guard: a golden check that the prose never introduces an
       uncited claim or a behavior id absent from the rows it was given.
-**Demo:** `docs/demos/v3-llm-rim.md` — same `ask` question rows-only vs.
-with-rim; key unset ⇒ identical rows-only output (degradation proven).
+      → `proseCitesOnlyKnownIds`; hallucinated id ⇒ whole prose discarded.
+**Demo:** `docs/demos/v3-llm-rim.md` — same `ask` rows-only vs. with-rim; key
+unset ⇒ identical rows-only output; hallucination discarded. ✅ (2026-06-15;
+254 tests; offline stubbed-fetch adapter).
 
 ## Phase V4 — Adoption on-ramp (PR 4)
 Goal: a new user goes from clone to first answer in under 5 minutes.

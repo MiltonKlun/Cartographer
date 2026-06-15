@@ -8,6 +8,7 @@ import type { QueryApi } from './query.js';
 import type { Ledger } from './db.js';
 import { isoNow, type Clock } from './clock.js';
 import { renderClaims, type Claim, type Health } from './renderer.js';
+import { type RimAdapter, proseCitesOnlyKnownIds } from './rim.js';
 import type { Behavior, Question, Verdict } from './types.js';
 
 export interface AskRow {
@@ -101,6 +102,27 @@ export function renderAsk(result: AskResult): string {
     lines.push('run again with --queue to file the gap as an interview question (I3)');
   }
   return lines.join('\n');
+}
+
+/**
+ * Optional prose pass (V3.2). The rows-only render from `renderAsk` is the
+ * source of truth and is ALWAYS produced; prose is prepended only when the rim
+ * is available, returns text, AND that text passes the faithfulness guard
+ * (cites only ids present in the rows — V3.3/I1). On any miss the function
+ * returns exactly `renderAsk(result)` — prose is never load-bearing (SPEC §12).
+ * The rim is handed `result.rows` (plain row data), never the ledger.
+ */
+export async function renderAskWithProse(result: AskResult, rim: RimAdapter): Promise<string> {
+  const rowsOnly = renderAsk(result);
+  if (!rim.available() || result.rows.length === 0) return rowsOnly;
+
+  const prose = await rim.proseOverRows(result.question, result.rows);
+  if (!prose) return rowsOnly;
+  if (!proseCitesOnlyKnownIds(prose, result.rows)) {
+    // the LLM cited something the core didn't produce — discard the prose (I1)
+    return rowsOnly;
+  }
+  return `${prose}\n\n${rowsOnly}`;
 }
 
 /** --queue: the gap becomes a Q record, never a guessed behavior (I3). */
