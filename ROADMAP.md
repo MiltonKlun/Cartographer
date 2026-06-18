@@ -74,14 +74,17 @@ unset ⇒ identical rows-only output; hallucination discarded. ✅ (2026-06-15;
 
 ## Phase V4 — Adoption on-ramp (PR 4)
 Goal: a new user goes from clone to first answer in under 5 minutes.
-- [ ] V4.1 README quickstart: install → `cart init` → bootstrap → ingest →
-      ask, copy-pasteable, matching real command output.
-- [ ] V4.2 `cart --help` / top-level usage parity check (a test asserts every
-      documented command exists in the dispatch switch).
-- [ ] V4.3 A `cart doctor` (or `status`-extension) that reports environment
+- [x] V4.1 README quickstart: install → `cart init` → bootstrap → ingest →
+      ask, copy-pasteable, matching real command output. → captured verbatim
+      from the bundled got fixtures.
+- [x] V4.2 `cart --help` / top-level usage parity check (a test asserts every
+      documented command exists in the dispatch switch). → e2e test parses
+      `cart help` and runs each command, asserting no "unknown command".
+- [x] V4.3 A `cart doctor` (or `status`-extension) that reports environment
       readiness: Node version, `git` present, vault writable, config valid.
+      → `src/doctor.ts`; git absent = warn (optional), others = fail.
 **Demo:** `docs/demos/v4-quickstart.md` — a timed clean-clone-to-first-answer
-run following only the README.
+run following only the README. ✅ (2026-06-15; ~1s command time; 262 tests).
 
 ## Phase V5 — Test-helper migration + tidy (PR 5)
 Goal: finish the de-duplication started in the test-suite audit; pay debt.

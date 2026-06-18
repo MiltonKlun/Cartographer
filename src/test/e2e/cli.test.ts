@@ -131,3 +131,35 @@ test('guardrails-check exits 1 on a forbidden patch, 0 on a clean locator heal',
   assert.equal(cart(freshDb(), 'guardrails-check', orig, bad, '--selector-heal').status, 1);
   assert.equal(cart(freshDb(), 'guardrails-check', orig, good, '--selector-heal').status, 0);
 });
+
+// V4.2 — command/doc parity: every top-level command documented in `cart help`
+// must be recognized by the dispatch switch (no doc-vs-code drift). A new
+// documented command with no handler, or a renamed handler, fails here.
+test('V4.2: every command in `cart help` is recognized by the dispatcher', () => {
+  const help = cart(freshDb(), 'help').stdout;
+  // grab the leading `cart <command>` token from each usage line
+  const commands = new Set<string>();
+  for (const m of help.matchAll(/^\s+cart ([a-z][a-z-]*)\b/gm)) {
+    commands.add(m[1]!);
+  }
+  assert.ok(commands.size >= 10, `expected many documented commands, found ${commands.size}`);
+
+  for (const cmd of commands) {
+    // run the bare command with no args against a fresh db; a recognized
+    // command never prints "unknown command" (it may usage-error, that's fine)
+    const r = cart(freshDb(), cmd);
+    assert.doesNotMatch(
+      r.stderr + r.stdout,
+      /unknown command/,
+      `documented command "${cmd}" is not wired into the dispatch switch`,
+    );
+  }
+});
+
+test('V4.3: cart doctor reports readiness and exits 0 on a healthy env', () => {
+  const r = cart(freshDb(), 'doctor');
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /environment readiness/);
+  assert.match(r.stdout, /node:|node:sqlite/);
+  assert.match(r.stdout, /READY/);
+});

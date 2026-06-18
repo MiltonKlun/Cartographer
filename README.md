@@ -17,6 +17,53 @@
 | `BUILD-PLAN.md` | 11 phases, one PR each, atomic checkboxed tasks (CG-X.Y) with demos — written for an agent (e.g., Claude Code) to execute serially. | The executing agent |
 | `skills/cartographer/SKILL.md` | The operating layer: how the assistant behaves on top of the built system — claim phrasing, surface routing, interview protocol, decline patterns. | The runtime assistant |
 
+## Quickstart (clone → first answer in ~5 minutes)
+
+Node 22.13+ required. From a clone:
+
+```sh
+npm install            # ajv + typescript + @types/node only
+npm run build          # compile src/ → dist/
+node bin/cart.mjs doctor   # check your environment is ready
+```
+
+`doctor` confirms the environment before you start:
+
+```
+cart doctor — environment readiness
+
+  ✓ node: v22.19.0 (≥ 22.13)
+  ✓ node:sqlite: available
+  ✓ git: git version 2.51.0
+  ✓ vault: writable (./vault)
+  ✓ config: decay.json + redaction.json valid
+
+READY — you can `cart init` and start.
+```
+
+Then cold-start a map from an existing test suite and ask it a question
+(`<repo>` is any project with a test suite — here the bundled `testdata/real`
+sample from the `got` library):
+
+```sh
+node bin/cart.mjs init                                   # create ledger.db
+node bin/cart.mjs bootstrap import <repo> --apply --actor you
+#   → scanned 2 test file(s) → 55 behavior proposal(s) (all unconfirmed)
+node bin/cart.mjs interview --batch 20                   # confirm/edit/merge the proposals
+node bin/cart.mjs ask "do we cache responses?"
+#   BHV-0002 "Cacheable responses are cached"  ASSERTED  F=0.00  …  [BHV-0002]
+```
+
+`ASSERTED` means *confirmed as intended, but not yet evidenced* — wire
+`cart ingest playwright <report.json>` into CI and the verdicts become
+`VERIFIED` with real freshness. From there: `cart pr <ref>`, `cart brief`,
+`cart triage <run>`. Add `cart ask … --prose` (needs `ANTHROPIC_API_KEY`) for
+an LLM summary over the cited rows.
+
+**Should you adopt it at all?** Read [`docs/adoption.md`](docs/adoption.md)
+first — it's honest about when Cartographer is the wrong tool (no CI, one-off
+work, you want per-person metrics).
+
 ## Read order
 
 - **Building it:** CONSTITUTION → SPEC → hand BUILD-PLAN to the agent, one

@@ -22,6 +22,7 @@ import { GitChurnIndex, NullChurnIndex } from './churn.js';
 import { computeHealth, computeStatus, DEFAULT_SLA_HOURS } from './health.js';
 import { assembleAsk, renderAsk, renderAskWithProse, queueGapQuestion } from './ask.js';
 import { AnthropicRimAdapter, NullRimAdapter, type RimAdapter } from './rim.js';
+import { runDoctor, renderDoctor } from './doctor.js';
 import { bootstrapRepo } from './bootstrap.js';
 import {
   applyInterview,
@@ -76,8 +77,9 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-const USAGE = `cart — Cartographer behavior ledger (Phase 0)
+const USAGE = `cart — Cartographer behavior ledger
 
+  cart doctor                                 check environment readiness (run this first)
   cart init                                   create ledger.db (idempotent)
   cart ask "<question>" [--queue] [--prose]   the 30-second answer, evidence-cited (--prose adds an LLM summary)
   cart pr <ref> [--repo D | --diff F] [--queue] [--post]
@@ -869,6 +871,13 @@ function cmdInit(args: string[]): void {
   console.log(`${fresh ? 'created' : 'opened'} ledger at ${path} (migrations applied)`);
 }
 
+function cmdDoctor(args: string[]): void {
+  const { values } = parseArgs({ args, options: { vault: { type: 'string' } } });
+  const report = runDoctor({ vaultRoot: vaultRoot(values) });
+  console.log(renderDoctor(report));
+  if (!report.ready) process.exit(1);
+}
+
 function cmdBehaviorAdd(args: string[]): void {
   const { values } = parseArgs({
     args,
@@ -1042,6 +1051,8 @@ export async function main(argv: string[]): Promise<void> {
   const [command, sub, ...rest] = argv;
   try {
     switch (command) {
+      case 'doctor':
+        return cmdDoctor(argv.slice(1));
       case 'init':
         return cmdInit(argv.slice(1));
       case 'behavior':
