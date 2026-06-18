@@ -3,14 +3,13 @@
 // forbidden patch ⇒ rejected before anything touches disk.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { Ledger } from '../../db.js';
 import { AutonomyGateway } from '../../autonomy.js';
 import { runHeal, type HealPorts, type HealProposal } from '../../heal.js';
 import { fixedClock } from '../../clock.js';
-import type { Behavior, Evidence, Receipt } from '../../types.js';
+import { tempLedger } from '../helpers/ledger.js';
+import { makeBehavior } from '../helpers/factories.js';
+import type { Evidence, Receipt } from '../../types.js';
 
 const clock = fixedClock('2026-06-11T22:00:00Z');
 
@@ -23,18 +22,11 @@ const LOCATOR_PATCH = ORIGINAL.replace("page.locator('#apply')", "page.locator('
 const FORBIDDEN_PATCH = ORIGINAL.replace("toBe('9.00')", "toBe('10.00')");
 
 function setup(): { ledger: Ledger; gateway: AutonomyGateway } {
-  const ledger = new Ledger(join(mkdtempSync(join(tmpdir(), 'cart-heal-')), 'ledger.db'), { clock });
-  const behavior: Behavior = {
-    id: 'BHV-0001',
-    statement: 'Coupon applies before tax',
-    area: 'checkout/coupons',
-    criticality: 'red',
-    links: {},
-    confirmed_by: { person: 'ana', at: '2026-06-01T00:00:00Z' },
-    created_by: 'interview',
-    status: 'active',
-  };
-  ledger.insertBehavior(behavior, 'ana');
+  const ledger = tempLedger(clock);
+  ledger.insertBehavior(
+    makeBehavior({ statement: 'Coupon applies before tax', area: 'checkout/coupons' }),
+    'ana',
+  );
   return { ledger, gateway: new AutonomyGateway(ledger, { clock }) };
 }
 

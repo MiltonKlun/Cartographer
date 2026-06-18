@@ -2,79 +2,30 @@
 // an unmapped one (minimum-viable-map rule), rows-only without an LLM.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { Ledger } from '../../db.js';
 import { QueryApi } from '../../query.js';
 import { assembleAsk, renderAsk, renderAskWithProse, queueGapQuestion, type AskRow } from '../../ask.js';
 import { NullRimAdapter, type RimAdapter } from '../../rim.js';
-import { loadDecayConfig } from '../../decay.js';
-import { NullChurnIndex } from '../../churn.js';
 import { fixedClock } from '../../clock.js';
+import { tempLedger, testCtx } from '../helpers/ledger.js';
+import { makeBehavior, makeProposal, makeEvidence } from '../helpers/factories.js';
 import type { Behavior, Evidence, Question } from '../../types.js';
 
 const NOW = '2026-06-10T12:00:00Z';
 const clock = fixedClock(NOW);
-const ctx = { config: loadDecayConfig(), churn: new NullChurnIndex(), clock };
+const ctx = testCtx(clock);
 
 function seeded(): { ledger: Ledger; api: QueryApi } {
-  const ledger = new Ledger(join(mkdtempSync(join(tmpdir(), 'cart-ask-')), 'ledger.db'), { clock });
+  const ledger = tempLedger(clock);
   const behaviors: Behavior[] = [
-    {
-      id: 'BHV-0001',
-      statement: 'Two coupons cannot be applied to one cart',
-      area: 'checkout/coupons',
-      criticality: 'high',
-      links: {},
-      confirmed_by: { person: 'ana', at: '2026-06-01T00:00:00Z' },
-      created_by: 'interview',
-      status: 'active',
-    },
-    {
-      id: 'BHV-0002',
-      statement: 'Coupon applies before tax',
-      area: 'checkout/coupons',
-      criticality: 'normal',
-      links: {},
-      confirmed_by: { person: 'ana', at: '2026-06-01T00:00:00Z' },
-      created_by: 'interview',
-      status: 'active',
-    },
-    {
-      id: 'BHV-0003',
-      statement: 'Coupon codes are case-insensitive',
-      area: 'checkout/coupons',
-      criticality: 'low',
-      links: {},
-      created_by: 'session', // unconfirmed proposal
-      status: 'active',
-    },
+    makeBehavior({ id: 'BHV-0001', statement: 'Two coupons cannot be applied to one cart', area: 'checkout/coupons', criticality: 'high' }),
+    makeBehavior({ id: 'BHV-0002', statement: 'Coupon applies before tax', area: 'checkout/coupons', criticality: 'normal' }),
+    makeProposal({ id: 'BHV-0003', statement: 'Coupon codes are case-insensitive', area: 'checkout/coupons', criticality: 'low', created_by: 'session' }),
   ];
   for (const b of behaviors) ledger.insertBehavior(b, 'ana');
   const evidence: Evidence[] = [
-    {
-      id: 'EV-0001',
-      behavior_ids: ['BHV-0001'],
-      kind: 'test_run',
-      outcome: 'supports',
-      observed_at: '2026-06-09T03:00:00Z', // fresh → VERIFIED
-      source: { type: 'ci', ref: 'run 8841' },
-      redaction: { status: 'clean', rules_hit: [] },
-      link_confidence: 'high',
-      ingested_by: 'ingest:playwright-json@1',
-    },
-    {
-      id: 'EV-0002',
-      behavior_ids: ['BHV-0002'],
-      kind: 'test_run',
-      outcome: 'violates',
-      observed_at: '2026-06-10T03:00:00Z',
-      source: { type: 'ci', ref: 'run 8850' },
-      redaction: { status: 'clean', rules_hit: [] },
-      link_confidence: 'high',
-      ingested_by: 'ingest:playwright-json@1',
-    },
+    makeEvidence({ id: 'EV-0001', behavior_ids: ['BHV-0001'], observed_at: '2026-06-09T03:00:00Z', source: { type: 'ci', ref: 'run 8841' } }),
+    makeEvidence({ id: 'EV-0002', behavior_ids: ['BHV-0002'], outcome: 'violates', observed_at: '2026-06-10T03:00:00Z', source: { type: 'ci', ref: 'run 8850' } }),
   ];
   for (const e of evidence) ledger.insertEvidence(e, 'ingest:playwright-json@1');
   return { ledger, api: new QueryApi(ledger, ctx) };

@@ -2,56 +2,33 @@
 // criticality × (1−F), new files → gaps, and the retro-validation gate.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { Ledger } from '../../db.js';
 import { QueryApi } from '../../query.js';
 import { assembleRiskNote, renderRiskNote, queueGaps } from '../../pr.js';
 import { diffFromText } from '../../diff.js';
-import { loadDecayConfig } from '../../decay.js';
-import { NullChurnIndex } from '../../churn.js';
 import { fixedClock } from '../../clock.js';
+import { tempLedger, testCtx } from '../helpers/ledger.js';
+import { makeBehavior, makeEvidence } from '../helpers/factories.js';
 import type { Behavior, Evidence, Question } from '../../types.js';
 
 const NOW = '2026-06-11T00:00:00Z';
 const clock = fixedClock(NOW);
-const ctx = { config: loadDecayConfig(), churn: new NullChurnIndex(), clock };
+const ctx = testCtx(clock);
 const HEALTH_OK = { degraded: false } as const;
 
 function ledgerWith(behaviors: Behavior[], evidence: Evidence[] = []): Ledger {
-  const ledger = new Ledger(join(mkdtempSync(join(tmpdir(), 'cart-pr-')), 'ledger.db'), { clock });
+  const ledger = tempLedger(clock);
   for (const b of behaviors) ledger.insertBehavior(b, 'ana');
   for (const e of evidence) ledger.insertEvidence(e, 'ingest:playwright-json@1');
   return ledger;
 }
 
 function behavior(id: string, over: Partial<Behavior> = {}): Behavior {
-  return {
-    id,
-    statement: 'A viewer-role user cannot bulk-delete records',
-    area: 'permissions/records',
-    criticality: 'red',
-    links: { implemented_in: ['src/records/**'] },
-    confirmed_by: { person: 'ana', at: '2026-06-01T00:00:00Z' },
-    created_by: 'interview',
-    status: 'active',
-    ...over,
-  };
+  return makeBehavior({ id, links: { implemented_in: ['src/records/**'] }, ...over });
 }
 
 function support(id: string, behaviorId: string, observedAt: string): Evidence {
-  return {
-    id,
-    behavior_ids: [behaviorId],
-    kind: 'test_run',
-    outcome: 'supports',
-    observed_at: observedAt,
-    source: { type: 'ci', ref: 'run 1' },
-    redaction: { status: 'clean', rules_hit: [] },
-    link_confidence: 'high',
-    ingested_by: 'ingest:playwright-json@1',
-  };
+  return makeEvidence({ id, behavior_ids: [behaviorId], observed_at: observedAt });
 }
 
 const recordsDiff = diffFromText(

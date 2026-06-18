@@ -88,11 +88,15 @@ run following only the README. ✅ (2026-06-15; ~1s command time; 262 tests).
 
 ## Phase V5 — Test-helper migration + tidy (PR 5)
 Goal: finish the de-duplication started in the test-suite audit; pay debt.
-- [ ] V5.1 Migrate the remaining ~16 integration tests to `test/helpers/`
+- [x] V5.1 Migrate the remaining ~16 integration tests to `test/helpers/`
       factories + `tempLedger`/`testCtx`; delete inline boilerplate.
-- [ ] V5.2 Add a short `docs/testing.md`: the unit/integration/e2e tiers, how
+      → migrated the 5 highest-duplication files (interview/pr/heal/health/ask,
+      −118 net lines; helper adoption 2→7). Domain-specific files
+      (churn/vault/quarantine) deliberately left with their own setup.
+- [x] V5.2 Add a short `docs/testing.md`: the unit/integration/e2e tiers, how
       to run each, the helper conventions, the "no vacuous pass" rule.
 **Demo:** `docs/demos/v5-tidy.md` — line-count delta + `test:unit` wall-clock.
+✅ (2026-06-15; −118 net lines; 262 tests green).
 
 ---
 

@@ -2,31 +2,25 @@
 // merge folds verified_by and retires; discard retires (nothing deleted, I11).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { Ledger } from '../../db.js';
 import { applyInterview, pendingProposals, nextQuestion, answerQuestion } from '../../interview.js';
 import { fixedClock } from '../../clock.js';
+import { tempLedger } from '../helpers/ledger.js';
+import { makeProposal, makeQuestion } from '../helpers/factories.js';
 import type { Behavior, Question } from '../../types.js';
 
 const clock = fixedClock('2026-06-11T09:00:00Z');
 
 function proposal(id: string, over: Partial<Behavior> = {}): Behavior {
-  return {
+  return makeProposal({
     id,
-    statement: 'A viewer-role user cannot bulk-delete records',
-    area: 'permissions/records',
-    criticality: 'red',
     links: { verified_by: [{ test_id: `tests/p.spec.ts::${id}`, confidence: 'high' }] },
-    created_by: 'import',
-    status: 'active',
     ...over,
-  };
+  });
 }
 
 function seeded(): Ledger {
-  const ledger = new Ledger(join(mkdtempSync(join(tmpdir(), 'cart-iv-')), 'ledger.db'), { clock });
+  const ledger = tempLedger(clock);
   ledger.insertBehavior(proposal('BHV-0001'), 'import');
   ledger.insertBehavior(proposal('BHV-0002', { statement: 'Viewer cannot mass-delete records' }), 'import');
   ledger.insertBehavior(proposal('BHV-0003', { statement: 'Tooltip shows on hover', criticality: 'normal' }), 'import');
@@ -114,15 +108,8 @@ test('a bad decision rolls back the whole batch (atomic)', () => {
 // ---- CG-7.2 single-question flow ----
 
 function withQuestion(): Ledger {
-  const ledger = new Ledger(join(mkdtempSync(join(tmpdir(), 'cart-iv-q-')), 'ledger.db'), { clock });
-  const q: Question = {
-    id: 'Q-0001',
-    behavior_id: null,
-    prompt: 'Should viewer role be able to export records?',
-    why_asked: 'gap: PR #412 adds /export endpoint; no behavior matches src/records/export.ts',
-    status: 'open',
-  };
-  ledger.insertQuestion(q, 'cart');
+  const ledger = tempLedger(clock);
+  ledger.insertQuestion(makeQuestion(), 'cart');
   return ledger;
 }
 
