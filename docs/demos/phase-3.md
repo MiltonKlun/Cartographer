@@ -9,14 +9,14 @@
 ```
 > cart ask "do we test coupons before tax?"
 BHV-0002 "Coupon applies before tax"  (ci, 2026-06-10)
-  VIOLATED  F=0.95  (computed 2026-06-10, newest: EV-0009)  [BHV-0002, EV-0009]
+  FAILING  F=0.95  (computed 2026-06-10, newest: EV-0009)  [BHV-0002, EV-0009]
 ```
-VIOLATED leads, always — the failing CI run from this morning outranks the
+FAILING leads, always — the failing CI run from this morning outranks the
 relevance order.
 
 ```
 > cart ask "do we test gift cards combined with coupons?" --queue
-BHV-0002 "Coupon applies before tax"  ...  VIOLATED ... [BHV-0002, EV-0009]
+BHV-0002 "Coupon applies before tax"  ...  FAILING ... [BHV-0002, EV-0009]
 inference: these rows cover only part of "do we test gift cards combined
 with coupons?" — no confirmed behavior covers the rest
 queued Q-0001 — answer it via the interview to grow the map
@@ -37,7 +37,7 @@ never a guess (I3).
 > cart status
 records: 2 behaviors (2 confirmed) · 11 evidence (2 quarantined)
          · 2 open questions · 6 receipts
-verdicts: VERIFIED 1 · STALE 0 · ASSERTED 0 · UNKNOWN 0 · VIOLATED 1
+verdicts: VERIFIED 1 · STALE 0 · ASSERTED 0 · UNKNOWN 0 · FAILING 1
 ```
 
 ## What this phase added
@@ -46,7 +46,7 @@ verdicts: VERIFIED 1 · STALE 0 · ASSERTED 0 · UNKNOWN 0 · VIOLATED 1
   relevance), `verdict` (delegates to the decay engine, I2), `evidenceFor`,
   `gapsFor`, `openQuestions`, `health` — read-only; person aggregation still
   refused (I7).
-- `src/ask.ts` — assembly → claims renderer → optional prose. VIOLATED
+- `src/ask.ts` — assembly → claims renderer → optional prose. FAILING
   sorts first; unconfirmed matches render badged and outside the verified
   answer; partial matches get an inference-labeled gap note; `--queue`
   files a `Q-` record with `why_asked`.

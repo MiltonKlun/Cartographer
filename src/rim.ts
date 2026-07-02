@@ -80,7 +80,7 @@ const SYSTEM_PROMPT = [
   '- Cite only behavior_ids and evidence_ids that appear in the rows. Never',
   '  invent an ID, a behavior, or a verdict.',
   '- Never upgrade a verdict (e.g. do not call a STALE behavior "verified").',
-  '- Lead with VIOLATED behaviors if any are present.',
+  '- Lead with FAILING behaviors if any are present.',
   '- If the rows do not answer the question, say so plainly.',
   'Return prose only — no markdown headers, no preamble like "Based on".',
 ].join('\n');

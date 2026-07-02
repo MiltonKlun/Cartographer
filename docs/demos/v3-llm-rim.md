@@ -23,12 +23,12 @@ two guarantees that keep the invariants intact:
 ```
 # default — no flag, no key needed: deterministic rows-only
 > cart ask "do we test coupons before tax?"
-BHV-0001 "Coupon applies before tax"  (ci, 2026-06-10)  VIOLATED  F=0.44  …  [BHV-0001, EV-0002]
+BHV-0001 "Coupon applies before tax"  (ci, 2026-06-10)  FAILING  F=0.44  …  [BHV-0001, EV-0002]
 
 # --prose opt-in, but ANTHROPIC_API_KEY unset: notice + identical rows-only
 > cart ask "do we test coupons before tax?" --prose
 cart: --prose needs ANTHROPIC_API_KEY (falling back to rows-only)
-BHV-0001 "Coupon applies before tax"  …  VIOLATED  F=0.44  …  [BHV-0001, EV-0002]
+BHV-0001 "Coupon applies before tax"  …  FAILING  F=0.44  …  [BHV-0001, EV-0002]
 ```
 
 The rows-only output is byte-identical with and without the rim — prose is an
@@ -38,12 +38,12 @@ enhancement, never a dependency.
 
 ```
 === FAITHFUL rim — prose prepended above the canonical rows: ===
-Coupon-before-tax is currently VIOLATED — the latest CI run contradicts it (BHV-0001, EV-0002).
+Coupon-before-tax is currently FAILING — the latest CI run contradicts it (BHV-0001, EV-0002).
 
-BHV-0001 "Coupon applies before tax"  …  VIOLATED  F=0.44  …  [BHV-0001, EV-0002]
+BHV-0001 "Coupon applies before tax"  …  FAILING  F=0.44  …  [BHV-0001, EV-0002]
 
 === HALLUCINATING rim (cites BHV-9999, which is NOT in the rows): ===
-BHV-0001 "Coupon applies before tax"  …  VIOLATED  F=0.44  …  [BHV-0001, EV-0002]
+BHV-0001 "Coupon applies before tax"  …  FAILING  F=0.44  …  [BHV-0001, EV-0002]
 guard: prose DISCARDED — rows-only stands (I1)
 ```
 

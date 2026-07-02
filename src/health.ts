@@ -67,7 +67,7 @@ export function computeStatus(ledger: Ledger, ctx: VerdictContext, slaHours = DE
     STALE: 0,
     ASSERTED: 0,
     UNKNOWN: 0,
-    VIOLATED: 0,
+    FAILING: 0,
   };
   for (const b of behaviors.filter((x) => x.status === 'active')) {
     const v: Verdict = computeVerdict(b, evidence, ctx);

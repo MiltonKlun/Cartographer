@@ -7,7 +7,7 @@ import { TIMESTAMP_PATTERN } from './clock.js';
 import type { Verdict, VerdictState } from './types.js';
 
 const CITATION_PATTERN = /^(BHV|EV|Q|SES|ACT)-\d{4,}$/;
-const VERDICT_STATES: VerdictState[] = ['VERIFIED', 'STALE', 'ASSERTED', 'UNKNOWN', 'VIOLATED'];
+const VERDICT_STATES: VerdictState[] = ['VERIFIED', 'STALE', 'ASSERTED', 'UNKNOWN', 'FAILING'];
 
 export type ClaimLabel = 'inference' | 'unknown';
 

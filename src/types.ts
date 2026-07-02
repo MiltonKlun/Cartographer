@@ -77,7 +77,7 @@ export interface Receipt {
 
 export type RecordType = 'behavior' | 'evidence' | 'question' | 'session' | 'receipt';
 
-export type VerdictState = 'VERIFIED' | 'STALE' | 'ASSERTED' | 'UNKNOWN' | 'VIOLATED';
+export type VerdictState = 'VERIFIED' | 'STALE' | 'ASSERTED' | 'UNKNOWN' | 'FAILING';
 
 // Verdict objects always carry all four fields; the renderer rejects anything
 // less (I2). From Phase 2 on, the decay engine is the only constructor.

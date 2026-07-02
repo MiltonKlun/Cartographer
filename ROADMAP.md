@@ -103,3 +103,8 @@ Goal: finish the de-duplication started in the test-suite audit; pay debt.
 ## Dependency order
 `V1 → V2 → V3 → V4 → V5` — strictly serial. V1 is the gate: if real data
 breaks something fundamental, that reshapes everything after it.
+
+---
+
+**This roadmap is complete.** Next plan: [HARDENING-PLAN.md](HARDENING-PLAN.md)
+(v0.3 — critical-review fixes + publication).

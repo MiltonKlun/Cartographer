@@ -37,7 +37,7 @@ flagged, never silently served.
 health: OK
 ingestors: ingest:junit@1 OK · ingest:playwright-json@1 OK
 records: 1 behaviors (1 confirmed) · 7 evidence (1 quarantined) · 0 open questions · 5 receipts
-verdicts: VERIFIED 1 · STALE 0 · ASSERTED 0 · UNKNOWN 0 · VIOLATED 0
+verdicts: VERIFIED 1 · STALE 0 · ASSERTED 0 · UNKNOWN 0 · FAILING 0
 
 > cart status --now 2026-06-13T20:00:00Z
 health: DEGRADED — ingest:playwright-json@1 has not ingested for 72h (SLA 26h)
@@ -46,7 +46,7 @@ health: DEGRADED — ingest:playwright-json@1 has not ingested for 72h (SLA 26h)
 ## What this phase added
 
 - `src/decay.ts` — the only verdict constructor (I2). Rule order:
-  unconfirmed → UNKNOWN (I3) · hard VIOLATED rule (newest violates beats any
+  unconfirmed → UNKNOWN (I3) · hard FAILING rule (newest violates beats any
   freshness) · zero evidence → ASSERTED · thresholds → VERIFIED/STALE/UNKNOWN.
   Superseded evidence is excluded.
 - `src/churn.ts` — churn port: `GitChurnIndex` (`git log --numstat`, cached),

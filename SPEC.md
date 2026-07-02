@@ -151,10 +151,10 @@ gateway writes the receipt in the same transaction as the action (I4, I11).
 ## 4. Verdicts and decay
 
 States: `VERIFIED`, `STALE`, `ASSERTED` (confirmed behavior, zero evidence),
-`UNKNOWN` (no confirmed behavior or no info), `VIOLATED`.
+`UNKNOWN` (no confirmed behavior or no info), `FAILING`.
 
 **Hard rule first:** if the newest evidence with `outcome: violates` is newer
-than the newest `supports` ⇒ `VIOLATED`, regardless of freshness.
+than the newest `supports` ⇒ `FAILING`, regardless of freshness.
 
 Otherwise compute freshness `F ∈ [0,1]` from the newest supporting evidence:
 
@@ -281,7 +281,7 @@ in `cart brief`. Quarantine entry + ticket filing = `ACT` with receipt.
 
 ### 7.4 `cart brief` — the morning brief (one screen, hard limit)
 
-Sections, in order: overnight verdict transitions (→`VIOLATED` first, then
+Sections, in order: overnight verdict transitions (→`FAILING` first, then
 `VERIFIED`→`STALE`); decayed `red`-criticality behaviors; today's open PRs ×
 stale behaviors exposure; quarantine expiries; top 3 open questions. Footer:
 ingestion health (I6).

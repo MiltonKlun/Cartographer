@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { Ledger } from '../../db.js';
 import { QueryApi } from '../../query.js';
 import { assembleAsk, renderAsk, renderAskWithProse, queueGapQuestion, type AskRow } from '../../ask.js';
+import { applyInterview } from '../../interview.js';
 import { NullRimAdapter, type RimAdapter } from '../../rim.js';
 import { fixedClock } from '../../clock.js';
 import { tempLedger, testCtx } from '../helpers/ledger.js';
@@ -31,16 +32,16 @@ function seeded(): { ledger: Ledger; api: QueryApi } {
   return { ledger, api: new QueryApi(ledger, ctx) };
 }
 
-test('mapped area: cited rows with verdicts; VIOLATED leads', () => {
+test('mapped area: cited rows with verdicts; FAILING leads', () => {
   const { api } = seeded();
   const result = assembleAsk(api, 'do we test coupons?');
   assert.equal(result.mapViable, true);
   assert.equal(result.rows[0]?.behavior.id, 'BHV-0002');
-  assert.equal(result.rows[0]?.verdict.state, 'VIOLATED');
+  assert.equal(result.rows[0]?.verdict.state, 'FAILING');
   assert.equal(result.rows[1]?.verdict.state, 'VERIFIED');
 
   const out = renderAsk(result);
-  assert.match(out, /BHV-0002 .*VIOLATED/s);
+  assert.match(out, /BHV-0002 .*FAILING/s);
   assert.match(out, /\[BHV-0001, EV-0001\]/);
   assert.match(out, /\(ci, 2026-06-09\)/);
 });
@@ -51,6 +52,47 @@ test('unconfirmed matches are badged, never part of the verified answer (I3)', (
   assert.ok(result.unconfirmedMatches.some((b) => b.id === 'BHV-0003'));
   const out = renderAsk(result);
   assert.match(out, /BHV-0003 .*\[unconfirmed proposal/);
+});
+
+test('H1.1: a discarded proposal never resurfaces in search or ask (I3)', () => {
+  const { ledger, api } = seeded();
+  // BHV-0003 is an unconfirmed proposal; discard it in the interview.
+  applyInterview(ledger, 'ana', [{ behaviorId: 'BHV-0003', decision: { kind: 'discard', reason: 'not a real rule' } }], clock);
+
+  // search must not return it at all
+  const hits = api.searchBehaviors('are coupon codes case-insensitive?');
+  assert.ok(!hits.some((h) => h.behavior.id === 'BHV-0003'), 'retired proposal must not be searchable');
+
+  // ask must not surface it in rows OR as an unconfirmed match
+  const result = assembleAsk(api, 'are coupon codes case-insensitive?');
+  assert.ok(!result.rows.some((r) => r.behavior.id === 'BHV-0003'), 'retired proposal must not be a row');
+  assert.ok(!result.unconfirmedMatches.some((b) => b.id === 'BHV-0003'), 'retired proposal must not be an unconfirmed match');
+  assert.ok(!renderAsk(result).includes('BHV-0003'), 'retired proposal must not render anywhere');
+});
+
+test('H1.2: a FAILING behavior below the row cut still leads (sort precedes cut)', () => {
+  const ledger = tempLedger(clock);
+  // 7 confirmed behaviors sharing the token "coupon"; the LAST one added is
+  // the lowest-ranked by token overlap (extra noise words dilute its score)
+  // yet it is the only one with violating evidence.
+  const behaviors: Behavior[] = [];
+  for (let i = 1; i <= 6; i++) {
+    behaviors.push(makeBehavior({ id: `BHV-000${i}`, statement: `Coupon rule number ${i} holds`, area: 'checkout/coupons', criticality: 'normal' }));
+  }
+  // lowest score: many non-matching words around the single "coupon" token
+  behaviors.push(makeBehavior({ id: 'BHV-0007', statement: 'A coupon with many many many other unrelated descriptive words', area: 'checkout/coupons', criticality: 'high' }));
+  for (const b of behaviors) ledger.insertBehavior(b, 'ana');
+  ledger.insertEvidence(
+    makeEvidence({ id: 'EV-0001', behavior_ids: ['BHV-0007'], outcome: 'violates', observed_at: '2026-06-10T03:00:00Z', source: { type: 'ci', ref: 'run 1' } }),
+    'ingest:playwright-json@1',
+  );
+  const api = new QueryApi(ledger, ctx);
+
+  const result = assembleAsk(api, 'coupon');
+  assert.ok(result.rows.length > 0, 'need rows (guards vacuous pass)');
+  assert.ok(result.rows.length <= 5, 'rows are still capped at MAX_ROWS');
+  assert.equal(result.rows[0]?.behavior.id, 'BHV-0007', 'the FAILING behavior leads even though it ranked below the cut');
+  assert.equal(result.rows[0]?.verdict.state, 'FAILING');
 });
 
 test('minimum-viable-map: unmapped area answers UNKNOWN and offers the queue', () => {
@@ -98,7 +140,7 @@ test('CG-3.3: rows-only output is complete without any LLM', async () => {
   assert.equal(await rim.proseOverRows(), undefined);
   // the surface renders fully from rows alone
   const out = renderAsk(result);
-  assert.ok(out.includes('VIOLATED') && out.includes('VERIFIED'));
+  assert.ok(out.includes('FAILING') && out.includes('VERIFIED'));
 });
 
 test('AskRow carries only plain data — no ledger handle, no methods (Constitution §1)', () => {
@@ -149,11 +191,11 @@ function fixedRim(prose: string | undefined, available = true): RimAdapter {
 test('V3.2: faithful prose is prepended; the rows-only render is always preserved', async () => {
   const { api } = seeded();
   const result = assembleAsk(api, 'do we test coupons?');
-  const rim = fixedRim('Coupon-before-tax is currently VIOLATED (BHV-0002, EV-0002).');
+  const rim = fixedRim('Coupon-before-tax is currently FAILING (BHV-0002, EV-0002).');
   const out = await renderAskWithProse(result, rim);
-  assert.match(out, /^Coupon-before-tax is currently VIOLATED/);
+  assert.match(out, /^Coupon-before-tax is currently FAILING/);
   // the canonical rows-only output still follows the prose, intact
-  assert.match(out, /BHV-0002 .*VIOLATED/s);
+  assert.match(out, /BHV-0002 .*FAILING/s);
   assert.ok(out.includes(renderAsk(result)), 'rows-only render must be present verbatim');
 });
 

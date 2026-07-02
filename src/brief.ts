@@ -1,5 +1,5 @@
 // `cart brief` (CG-7.1, SPEC §7.4) — the morning brief, one screen, hard
-// limit. Sections in fixed order: overnight verdict transitions (→VIOLATED
+// limit. Sections in fixed order: overnight verdict transitions (→FAILING
 // first, then VERIFIED→STALE); decayed red-criticality behaviors; open PRs ×
 // stale exposure; quarantine expiries; top 3 open questions. Footer:
 // ingestion health (I6). Every behavior line cites its row; the brief is
@@ -33,9 +33,9 @@ const TOP_QUESTIONS = 3;
 const MAX_TRANSITIONS = 6;
 const MAX_DECAYED_RED = 5;
 
-/** Transition priority: anything → VIOLATED first, then VERIFIED → worse. */
+/** Transition priority: anything → FAILING first, then VERIFIED → worse. */
 function transitionRank(t: Transition): number {
-  if (t.to === 'VIOLATED') return 0;
+  if (t.to === 'FAILING') return 0;
   if (t.from === 'VERIFIED' && (t.to === 'STALE' || t.to === 'UNKNOWN')) return 1;
   return 2;
 }
@@ -86,7 +86,7 @@ export function assembleBrief(
   const decayedRed = behaviors
     .filter((b) => b.criticality === 'red' && b.confirmed_by)
     .map((b) => ({ id: b.id, statement: b.statement, ...current.get(b.id)! }))
-    .filter((r) => r.state === 'STALE' || r.state === 'UNKNOWN' || r.state === 'VIOLATED')
+    .filter((r) => r.state === 'STALE' || r.state === 'UNKNOWN' || r.state === 'FAILING')
     .sort((a, b) => a.freshness - b.freshness)
     .slice(0, MAX_DECAYED_RED);
 
@@ -124,7 +124,7 @@ export function renderBrief(data: BriefData): string {
     lines.push('  none');
   } else {
     for (const t of data.transitions) {
-      const lead = t.to === 'VIOLATED' ? '🚨 ' : '';
+      const lead = t.to === 'FAILING' ? '🚨 ' : '';
       lines.push(`  ${lead}${t.behaviorId} [${t.criticality}] ${t.from} → ${t.to}  "${t.statement}"`);
     }
   }

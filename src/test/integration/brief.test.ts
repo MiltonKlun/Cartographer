@@ -85,7 +85,7 @@ test('overnight transition VERIFIED → STALE shows up after a second brief', ()
   assert.ok(t.to === 'STALE' || t.to === 'UNKNOWN');
 });
 
-test('→ VIOLATED transitions lead the section', () => {
+test('→ FAILING transitions lead the section', () => {
   const ledger = freshLedger(fixedClock('2026-06-11T08:00:00Z'));
   ledger.insertBehavior(redBehavior('BHV-0001'), 'ana');
   ledger.insertBehavior(redBehavior('BHV-0002', { statement: 'Coupon applies before tax', criticality: 'normal' }), 'ana');
@@ -99,7 +99,7 @@ test('→ VIOLATED transitions lead the section', () => {
   ledger.insertEvidence(support('EV-0003', 'BHV-0002', '2026-06-11T12:00:00Z', 'violates'), 'ingest:playwright-json@1');
   const d2 = ctxAt('2026-06-12T08:00:00Z');
   const data = assembleBrief(ledger, new QueryApi(ledger, d2), d2, { quarantinePath: emptyQuarantine(), writeSnapshot: true });
-  assert.equal(data.transitions[0]?.to, 'VIOLATED');
+  assert.equal(data.transitions[0]?.to, 'FAILING');
   assert.match(renderBrief(data), /🚨 BHV-0002/);
 });
 

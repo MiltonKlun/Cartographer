@@ -32,11 +32,14 @@ export interface AskResult {
 const MAX_ROWS = 5;
 
 export function assembleAsk(api: QueryApi, question: string): AskResult {
-  const matches = api.searchBehaviors(question).slice(0, MAX_ROWS);
+  const matches = api.searchBehaviors(question);
   const confirmed = matches.filter((m) => m.behavior.confirmed_by !== undefined);
   const unconfirmed = matches.filter((m) => m.behavior.confirmed_by === undefined);
 
-  const rows: AskRow[] = confirmed.map(({ behavior, score }) => {
+  // Build rows for EVERY confirmed match, then sort, THEN cut — so a FAILING
+  // behavior ranked below the cut by token overlap still leads (H1.2). Cutting
+  // before the sort would silently drop it, contradicting "FAILING leads".
+  const allRows: AskRow[] = confirmed.map(({ behavior, score }) => {
     const verdict = api.verdict(behavior.id);
     const newest = verdict.newest_evidence_id ? api.getEvidence(verdict.newest_evidence_id) : undefined;
     return {
@@ -48,15 +51,16 @@ export function assembleAsk(api: QueryApi, question: string): AskResult {
       score,
     };
   });
-  // VIOLATED leads, always (SKILL.md claim phrasing), then by relevance
-  rows.sort((a, b) => Number(b.verdict.state === 'VIOLATED') - Number(a.verdict.state === 'VIOLATED') || b.score - a.score);
+  // FAILING leads, always (SKILL.md claim phrasing), then by relevance
+  allRows.sort((a, b) => Number(b.verdict.state === 'FAILING') - Number(a.verdict.state === 'FAILING') || b.score - a.score);
+  const rows = allRows.slice(0, MAX_ROWS);
 
   return {
     question,
     rows,
     mapViable: rows.length > 0,
     partial: rows.length > 0 && rows.every((r) => r.score < 0.5),
-    unconfirmedMatches: unconfirmed.map((m) => m.behavior),
+    unconfirmedMatches: unconfirmed.slice(0, MAX_ROWS).map((m) => m.behavior),
     health: api.health(),
   };
 }

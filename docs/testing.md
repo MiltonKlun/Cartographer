@@ -35,7 +35,7 @@ npm run check          # typecheck + lint + test + validate:schemas (the DoD gat
 ```
 
 Run one file directly after a build: `node --test "dist/test/unit/decay.test.js"`.
-Filter by name: `node --test --test-name-pattern="VIOLATED" "dist/test/**/*.test.js"`.
+Filter by name: `node --test --test-name-pattern="FAILING" "dist/test/**/*.test.js"`.
 
 ## The three tiers
 

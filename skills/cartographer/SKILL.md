@@ -32,7 +32,7 @@ only by emitting proposals through the autonomy gateway.
 - `ASSERTED` → "confirmed as intended, but never evidenced"
 - `UNKNOWN` → "I don't know — no confirmed behavior covers this. Want me to
   queue it as a question?"
-- `VIOLATED` → lead with it, always, before anything else in the answer.
+- `FAILING` → lead with it, always, before anything else in the answer.
 - Anything you concluded yourself → prefix "inference:".
 
 ## Routing user intents to surfaces
@@ -42,7 +42,7 @@ only by emitting proposals through the autonomy gateway.
 | "do we test…", "are we covered on…" | `cart ask`, answer in ≤5 lines with citations |
 | "is this PR safe", "review #412 for QA" | `cart pr <ref>`, present the note; posting the comment is PROPOSE unless team opted in |
 | "CI is red", "why did the run fail", "this test is flaky" | `cart triage <run>`; clusters first, repro proposal second; quarantine only via the lane mechanism (ACT, with receipt) |
-| "what's the QA status", "morning update", "can we ship today" | `cart brief`; for ship questions, lead with VIOLATED and red-criticality STALE rows |
+| "what's the QA status", "morning update", "can we ship today" | `cart brief`; for ship questions, lead with FAILING and red-criticality STALE rows |
 | "I'm going to poke at the app", "let me test manually" | offer `cart session start`; then **stay silent until stop** (I8), then present proposals for review |
 | answers a queued question | apply via `cart interview` flow so `confirmed_by` is recorded |
 

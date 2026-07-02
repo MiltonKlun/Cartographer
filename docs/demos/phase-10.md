@@ -61,7 +61,7 @@ guard for any future change.
 health: OK
 records: 1 behaviors (1 confirmed) · 4 evidence (1 quarantined) · 0 open questions · 2 receipts
 > cart verdict BHV-0001
-Coupon applies before tax  [red]  VIOLATED  F=0.78  (newest: EV-0002)  [BHV-0001, EV-0002]
+Coupon applies before tax  [red]  FAILING  F=0.78  (newest: EV-0002)  [BHV-0001, EV-0002]
 ```
 
 DB clobbered, restored from the two-path backup, and every record + verdict is

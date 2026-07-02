@@ -810,7 +810,7 @@ function cmdStatus(args: string[]): void {
     const c = report.counts;
     lines.push(`records: ${c.behaviors} behaviors (${c.confirmed} confirmed) · ${c.evidence} evidence (${c.quarantined} quarantined) · ${c.questionsOpen} open questions · ${c.receipts} receipts`);
     const h = report.verdictHistogram;
-    lines.push(`verdicts: VERIFIED ${h.VERIFIED} · STALE ${h.STALE} · ASSERTED ${h.ASSERTED} · UNKNOWN ${h.UNKNOWN} · VIOLATED ${h.VIOLATED}`);
+    lines.push(`verdicts: VERIFIED ${h.VERIFIED} · STALE ${h.STALE} · ASSERTED ${h.ASSERTED} · UNKNOWN ${h.UNKNOWN} · FAILING ${h.FAILING}`);
     console.log(lines.join('\n'));
   } finally {
     ledger.close();

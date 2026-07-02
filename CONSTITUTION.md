@@ -31,7 +31,7 @@ everything else.
 |---|---|
 | **Behavior** (`BHV-xxxx`) | A user-visible promise the product makes, stated as one falsifiable sentence ("A viewer-role user cannot bulk-delete records"). Not a file, not a test name. |
 | **Evidence** (`EV-xxxx`) | An immutable, timestamped record of an observation that supports or violates a behavior: a test run, trace, screenshot, manual observation, crawl result, or incident. |
-| **Verdict** | The computed state of a behavior: `VERIFIED`, `STALE`, `ASSERTED`, `UNKNOWN`, `VIOLATED` — always paired with a freshness score and a date. |
+| **Verdict** | The computed state of a behavior: `VERIFIED`, `STALE`, `ASSERTED`, `UNKNOWN`, `FAILING` — always paired with a freshness score and a date. |
 | **Freshness** | Decayed confidence in a verdict, computed from evidence age, code churn near the behavior, and incident history. |
 | **Claim** | Any statement Cartographer makes about coverage, risk, or product behavior. |
 | **Surface** | A place Cartographer meets the engineer: `ask`, `pr`, `triage`, `brief`, `interview`, `session`, `status`. |

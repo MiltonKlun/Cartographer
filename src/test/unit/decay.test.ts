@@ -129,11 +129,11 @@ test('hard rule: newest violates beats fresher supports, regardless of freshness
     ],
     ctx(),
   );
-  assert.equal(v.state, 'VIOLATED');
+  assert.equal(v.state, 'FAILING');
   assert.equal(v.newest_evidence_id, 'EV-0002');
 });
 
-test('supports newer than violates: not VIOLATED', () => {
+test('supports newer than violates: not FAILING', () => {
   const v = computeVerdict(
     behavior(),
     [

@@ -107,5 +107,5 @@ test('verdict snapshots are append-only and diffable (migration 4)', () => {
   ledger.writeVerdictSnapshot('2026-06-11T08:00:00Z', [{ behavior_id: 'BHV-0001', state: 'STALE', freshness: 0.3 }]);
   assert.equal(ledger.previousSnapshotAt('2026-06-11T08:00:00Z'), '2026-06-10T08:00:00Z');
   assert.equal(ledger.verdictSnapshot('2026-06-10T08:00:00Z').get('BHV-0001')?.state, 'VERIFIED');
-  assert.throws(() => ledger.rawExec("UPDATE verdict_snapshots SET state = 'VIOLATED'"), /append-only/);
+  assert.throws(() => ledger.rawExec("UPDATE verdict_snapshots SET state = 'FAILING'"), /append-only/);
 });

@@ -90,7 +90,9 @@ export class QueryApi {
   searchBehaviors(question: string): { behavior: Behavior; score: number }[] {
     const qTokens = tokenize(question);
     if (qTokens.length === 0) return [];
-    const all = this.ledger.allRecords('behaviors') as Behavior[];
+    // Only active records are searchable — retired proposals (discarded or
+    // merged away in the interview) must never resurface in ask (H1.1, I3).
+    const all = (this.ledger.allRecords('behaviors') as Behavior[]).filter((b) => b.status === 'active');
     return all
       .map((behavior) => {
         const bTokens = new Set(tokenize(`${behavior.statement} ${behavior.area.replace(/\//g, ' ')}`));

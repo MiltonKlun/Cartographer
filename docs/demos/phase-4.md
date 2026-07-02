@@ -14,7 +14,7 @@ data-integrity test titles).
 > cart bootstrap import .
 scanned 16 test file(s) → 119 behavior proposal(s) (all unconfirmed)
 criticality guesses: normal 93 · red 22 · high 4
-  BHV-0001  [normal] Mapped area: cited rows with verdicts; VIOLATED leads  (ask)
+  BHV-0001  [normal] Mapped area: cited rows with verdicts; FAILING leads  (ask)
   …and 107 more
 preview only — re-run with --apply …
 
@@ -23,7 +23,7 @@ wrote 119 unconfirmed proposal(s). Next: cart interview --batch 20
 
 > cart interview --batch 5
 5 proposal(s) awaiting your judgment (why: each was drafted from a test, unconfirmed):
-  BHV-0001  [normal] Mapped area: cited rows with verdicts; VIOLATED leads
+  BHV-0001  [normal] Mapped area: cited rows with verdicts; FAILING leads
         area: ask · from: src/ask.test.ts::mapped area: …
   …
 
@@ -36,7 +36,7 @@ interview applied by erick: 50 confirmed, 1 merged, 1 discarded
 
 > cart status
 records: 119 behaviors (50 confirmed) · 0 evidence · 0 open questions · 0 receipts
-verdicts: VERIFIED 0 · STALE 0 · ASSERTED 50 · UNKNOWN 67 · VIOLATED 0
+verdicts: VERIFIED 0 · STALE 0 · ASSERTED 50 · UNKNOWN 67 · FAILING 0
 ```
 
 **≥50 confirmed in one sitting: met (exactly 50).** The histogram is the

@@ -41,7 +41,7 @@ Top 3 open questions:
 ⚠ ingestion health: DEGRADED — ingest:playwright-json@1 has not ingested for 266h (SLA 26h)
 ```
 
-Sections render in the fixed SPEC §7.4 order; `→ VIOLATED` transitions lead
+Sections render in the fixed SPEC §7.4 order; `→ FAILING` transitions lead
 (shown with 🚨 in the test suite); the health footer fires loudly (I6) — the
 time travel itself made ingestion stale.
 
@@ -76,7 +76,7 @@ no evidence yet) — honest, and ready to become VERIFIED once CI runs.
   helpers (`writeVerdictSnapshot`, `previousSnapshotAt`, `verdictSnapshot`)
   for the overnight diff.
 - `src/brief.ts` (CG-7.1) — ordered sections, snapshot-diff transitions
-  (→VIOLATED first), decayed-red list, quarantine expiries (wired from
+  (→FAILING first), decayed-red list, quarantine expiries (wired from
   Phase 6), top-3 questions, health footer; one screen.
 - `src/interview.ts` (CG-7.2) — `nextQuestion` + `answerQuestion`
   (new_behavior creates+confirms, confirm_existing, dismiss); one

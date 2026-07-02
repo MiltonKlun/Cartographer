@@ -1,6 +1,6 @@
 // The decay engine (SPEC §4) — the ONLY constructor of verdict objects (I2).
 // Hard rule first: newest violating evidence newer than newest supporting
-// ⇒ VIOLATED, regardless of freshness. Otherwise:
+// ⇒ FAILING, regardless of freshness. Otherwise:
 //
 //   F = exp(-Δt_days / τ_time(criticality)) × exp(-churn / τ_churn) × W(link_confidence)
 //
@@ -70,7 +70,7 @@ export function freshnessOf(
 /**
  * The single verdict constructor. Order of rules:
  *   1. unconfirmed behavior        → UNKNOWN (meaning is human, I3)
- *   2. newest violates > supports  → VIOLATED (hard rule, ignores freshness)
+ *   2. newest violates > supports  → FAILING (hard rule, ignores freshness)
  *   3. zero conclusive evidence    → ASSERTED
  *   4. freshness thresholds        → VERIFIED / STALE / UNKNOWN
  */
@@ -95,7 +95,7 @@ export function computeVerdict(
     (!newestSupports || newestViolates.observed_at > newestSupports.observed_at)
   ) {
     const freshness = freshnessOf(behavior, newestViolates, ctx);
-    return { state: 'VIOLATED', freshness, computed_at, newest_evidence_id: newestViolates.id };
+    return { state: 'FAILING', freshness, computed_at, newest_evidence_id: newestViolates.id };
   }
 
   if (!newestSupports) {

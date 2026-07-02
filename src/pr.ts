@@ -123,7 +123,7 @@ export function renderRiskNote(note: RiskNote): string {
 
 function renderRecommendation(note: RiskNote): string {
   const steps: string[] = [];
-  const topStale = note.rows.filter((r) => r.verdict.state === 'STALE' || r.verdict.state === 'VIOLATED' || r.verdict.state === 'UNKNOWN');
+  const topStale = note.rows.filter((r) => r.verdict.state === 'STALE' || r.verdict.state === 'FAILING' || r.verdict.state === 'UNKNOWN');
   if (topStale.length > 0) {
     const ids = topStale.slice(0, 3).map((r) => r.behavior.id).join(', ');
     steps.push(`re-run the suites covering ${ids} to refresh their evidence`);
