@@ -510,6 +510,7 @@ function cmdHeal(args: string[]): void {
     args,
     options: {
       db: { type: 'string' },
+      vault: { type: 'string' },
       patched: { type: 'string' },
       behavior: { type: 'string' },
       test: { type: 'string' },
@@ -542,9 +543,9 @@ function cmdHeal(args: string[]): void {
   try {
     const gateway = new AutonomyGateway(ledger, { clock });
     const proposal = { file, behaviorId: values.behavior, testId: values.test, originalSource, patchedSource };
-    const outcome = runHeal(ledger, gateway, proposal, ports, clock);
+    const outcome = runHeal(ledger, gateway, proposal, ports, clock, vaultRoot(values));
     console.log(renderHealOutcome(proposal, outcome));
-    if (outcome.status === 'rejected') process.exit(1);
+    if (outcome.status === 'rejected' || outcome.status === 'interrupted') process.exit(1);
   } finally {
     ledger.close();
   }

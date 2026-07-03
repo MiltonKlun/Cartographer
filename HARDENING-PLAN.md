@@ -94,38 +94,39 @@ receipt's patch)'` — **nothing stores that source anywhere**. And between
 `ports.applyPatch(...)` (line 63) and the receipt (line 74+), a crash during
 `ports.rerun(...)` leaves the patched file with no record.
 
-- [ ] H2.1 **Vault the pre-heal source.** Add a `vaultRoot: string` parameter
+- [x] H2.1 **Vault the pre-heal source.** Add a `vaultRoot: string` parameter
       to `runHeal(...)`. After guardrails pass and **before** `applyPatch`,
       call `vaultWrite(vaultRoot, proposal.originalSource)` (`src/vault.ts`,
       content-addressed, already exists) and change the receipt's `revert`
       text to reference the returned VaultRef's vault path, e.g.
       `restore ${proposal.file} from vault ${ref.path}`.
-      - [ ] Update callers: `cmdHeal` in `src/cli.ts` (reuse the CLI's
-            existing vault-root resolution) and the heal tests.
-      - [ ] Test `H2.1`: run a green heal, extract the vault path from the
+      - [x] Update callers: `cmdHeal` in `src/cli.ts` (added `--vault`) and the
+            heal tests (`setup()` now returns a `tempVaultPath()`).
+      - [x] Test `H2.1`: run a green heal, extract the vault path from the
             receipt's `revert` string, `vaultRead` it, assert content equals
-            `originalSource` byte-for-byte.
-- [ ] H2.2 **In-flight journal closes the crash window.** Immediately before
+            `originalSource` byte-for-byte. → passing + driven via real CLI.
+- [x] H2.2 **In-flight journal closes the crash window.** Immediately before
       `applyPatch`, write `join(vaultRoot, 'heal-inflight.json')` containing
       `{ file, testId, behaviorId, vaultPath, startedAt }`. Delete it on
       every resolved exit (`healed`, `reverted`). If the journal already
-      exists when `runHeal` starts, **refuse** to run (return a new
-      `{ status: 'rejected', ... }`-style outcome or throw with a clear
-      message) and tell the operator to restore `file` from `vaultPath`.
-      - [ ] Test `H2.2a`: make `ports.rerun` throw; catch around `runHeal`;
-            assert the journal file exists, its `vaultPath` resolves via
-            `vaultRead` to the original source.
-      - [ ] Test `H2.2b`: with a leftover journal present, a fresh `runHeal`
-            refuses and applies no patch.
-      - [ ] Test `H2.2c`: green heal and red (reverted) heal both leave **no**
+      exists when `runHeal` starts, **refuse** to run (new `interrupted`
+      outcome) and tell the operator to restore `file` from `vaultPath`.
+      - [x] Test `H2.2a`: throwing `ports.rerun` leaves the journal; its
+            `vaultPath` resolves via `vaultRead` to the original source.
+      - [x] Test `H2.2b`: with a leftover journal present, a fresh `runHeal`
+            returns `interrupted` and applies no patch.
+      - [x] Test `H2.2c`: green heal and reverted heal both leave **no**
             journal behind.
-- [ ] H2.3 **`cart doctor` surfaces an interrupted heal.** Add a doctor check
-      (`src/doctor.ts`): leftover `heal-inflight.json` under the vault root ⇒
-      `fail`, message includes the file and vault path to restore from (I6 —
-      loud, not silent). Unit test both directions.
+- [x] H2.3 **`cart doctor` surfaces an interrupted heal.** `checkHealJournal`
+      in `src/doctor.ts`: leftover `heal-inflight.json` under the vault root ⇒
+      `fail` with the file + vault path to restore from (I6). Unit test both
+      directions; driven via real `cart doctor` (exit 1).
 
 **Demo:** `docs/demos/h2-heal-integrity.md` — a receipt whose revert path is
 opened and verified; the simulated-crash transcript + doctor output.
+
+**Done 2026-07-02** (269 tests green; green/interrupted/doctor/blocked paths
+driven end-to-end against real `bin/cart.mjs`).
 
 ## Phase H3 — Health SLA realism (review A3)
 

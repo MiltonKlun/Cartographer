@@ -7,6 +7,7 @@ import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { configDir } from './paths.js';
+import { readHealJournal } from './heal.js';
 
 export type CheckStatus = 'ok' | 'warn' | 'fail';
 
@@ -88,6 +89,19 @@ export function checkConfig(dir: string = configDir): DoctorCheck {
     : { name: 'config', status: 'fail', detail: `invalid: ${broken.join(', ')}` };
 }
 
+/** A leftover in-flight heal journal means a heal crashed mid-flight (H2.3). */
+export function checkHealJournal(vaultRoot: string): DoctorCheck {
+  const journal = readHealJournal(vaultRoot);
+  if (!journal) {
+    return { name: 'heal', status: 'ok', detail: 'no interrupted heal' };
+  }
+  return {
+    name: 'heal',
+    status: 'fail',
+    detail: `interrupted heal — restore ${journal.file} from vault ${journal.vaultPath}, then delete ${vaultRoot}/heal-inflight.json`,
+  };
+}
+
 function defaultRun(cmd: string, args: string[]): { status: number | null; stdout: string } {
   const r = spawnSync(cmd, args, { encoding: 'utf8', windowsHide: true });
   return { status: r.status, stdout: r.stdout ?? '' };
@@ -104,6 +118,7 @@ export function runDoctor(opts: DoctorOptions): DoctorReport {
     checkSqlite(),
     checkGit(),
     checkVaultWritable(opts.vaultRoot),
+    checkHealJournal(opts.vaultRoot),
     checkConfig(opts.configPath),
   ];
   return { checks, ready: checks.every((c) => c.status !== 'fail') };
