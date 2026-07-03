@@ -138,37 +138,30 @@ seen with prefix `ingest:` against a single fixed `DEFAULT_SLA_HOURS = 26`,
 forever. One ad-hoc JUnit import ⇒ the map is DEGRADED for life, which trains
 users to ignore the I6 banner.
 
-- [ ] H3.1 **Retirement window (default behavior).** Add
-      `retirement_hours` (default `336` = 14 days). An ingestor with
-      `staleHours > retirement_hours` becomes `inactive`: reported in
-      `IngestorStatus` (add a `state: 'fresh' | 'stale' | 'inactive'` field or
-      an `inactive: boolean`) and **excluded from degradation**. Between
-      `sla_hours` and `retirement_hours` the current stale/degraded behavior
-      is unchanged.
-- [ ] H3.2 **Optional `config/health.json`.** Loader `loadHealthConfig(path?)`
-      mirroring `loadDecayConfig` (`src/decay.ts:24`): shape
-      `{ sla_hours?: number, retirement_hours?: number,
-      expected_ingestors?: string[] }`; missing file ⇒ all defaults. An
-      ingestor listed in `expected_ingestors` **never** retires — it degrades
-      health until it ingests again, however long it's been (that is the
-      point of listing it). Ship the file with `{}` or don't ship it —
-      absent must work.
-- [ ] H3.3 **Tests** (extend `src/test/integration/health.test.ts`):
-      - [ ] existing 17h-fresh / 48h-degraded cases still pass unchanged;
-      - [ ] 400h-stale **unlisted** ingestor ⇒ `degraded: false`, entry
-            reported `inactive`;
-      - [ ] 400h-stale ingestor **listed** in `expected_ingestors` ⇒
-            `degraded: true`;
-      - [ ] `computeStatus` output includes inactive ingestors, distinguished
-            from fresh/stale.
-- [ ] H3.4 **Docs:** update the health section of `docs/operations.md` (SLA,
-      retirement, the expected-ingestors contract) and make sure
-      `cart status` rendering labels inactive ingestors as
-      `inactive (not counted against health)`.
+- [x] H3.1 **Retirement window (default behavior).** Added
+      `retirement_hours` (default `336` = 14 days). An ingestor past it (and
+      not expected) becomes `inactive` — new `state: 'fresh'|'stale'|'inactive'`
+      on `IngestorStatus` (`withinSla` retained = `state==='fresh'`), excluded
+      from degradation. Between SLA and retirement, stale/degraded unchanged.
+- [x] H3.2 **Optional `config/health.json`.** `loadHealthConfig(path?)` mirrors
+      `loadDecayConfig`; missing/broken file ⇒ all defaults (never throws).
+      `expected_ingestors` entries never retire — they degrade health until
+      they ingest again. Shipped `config/health.json` with documented defaults
+      + empty `expected_ingestors` (no behavior change until a user lists one).
+- [x] H3.3 **Tests** (`src/test/integration/health.test.ts`):
+      - [x] existing 17h-fresh / 48h-degraded cases pass unchanged;
+      - [x] 400h-stale **unlisted** ⇒ `degraded: false`, `state: 'inactive'`;
+      - [x] 400h-stale **listed** in `expected_ingestors` ⇒ `degraded: true`;
+      - [x] `computeStatus` distinguishes inactive / fresh / stale.
+- [x] H3.4 **Docs:** added a Health-SLA section to `docs/operations.md`
+      (state table, defaults, the `expected_ingestors` contract); `cart status`
+      labels inactive ingestors `inactive (not counted against health)`.
 
-**Demo:** `docs/demos/h3-health-sla.md` — the one-time-ingestor trap
-reproduced on HEAD~1, then healthy on HEAD; the expected-ingestor case still
-degrading.
+**Demo:** `docs/demos/h3-health-sla.md` — the one-time-ingestor trap and the
+expected-ingestor case, both driven against real `cart status`.
+
+**Done 2026-07-02** (273 tests green; trap→OK and expected→DEGRADED confirmed
+via real `bin/cart.mjs status`).
 
 ## Phase H4 — CLI + classifier correctness (review A5 + A7)
 

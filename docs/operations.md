@@ -57,6 +57,45 @@ backup. The JSONL is the human-recoverable floor, not the primary restore.
 - `cart export` round-trips (re-export succeeds).
 - A spot-check `cart verdict <known-BHV>` returns the expected state.
 
+## Health SLA + ingestor retirement (H3, I6)
+
+Health degrades **loudly** — a stale ingestor puts a `HEALTH DEGRADED` banner
+on every surface (I6), because a stale map is worse than no map. But a banner
+that is *always* up trains people to ignore it, so health distinguishes three
+per-ingestor states, all derived from the mutations log (no extra bookkeeping):
+
+| State | When | Effect on health |
+|---|---|---|
+| **fresh** | last ingest ≤ `sla_hours` | none — healthy |
+| **stale** | past `sla_hours`, within `retirement_hours` | **degrades** (banner up) |
+| **inactive** | past `retirement_hours`, **not** an expected feed | none — assumed one-off |
+
+Defaults: `sla_hours = 26` (daily CI + slack), `retirement_hours = 336`
+(14 days). So an ad-hoc `cart ingest junit` you ran once during evaluation
+degrades health for two weeks, then goes quiet on its own — it no longer
+poisons the banner forever.
+
+Override in `config/health.json` (absent ⇒ all defaults; the file is optional
+and a broken file falls back to defaults rather than crashing):
+
+```json
+{
+  "sla_hours": 26,
+  "retirement_hours": 336,
+  "expected_ingestors": ["ingest:playwright-json@1"]
+}
+```
+
+**`expected_ingestors` is the important knob.** An ingestor listed here is a
+*deliberate* feed — your real nightly CI. It **never** retires: if it goes
+quiet it keeps health DEGRADED however long it's been, because that silence is
+exactly the failure you want the banner to shout about. List the feeds you
+depend on; leave one-off imports unlisted. Per-run override for a spot check:
+`cart status --sla <hours>`.
+
+`cart status` prints each ingestor's state, labelling inactive ones
+`inactive (not counted against health)` so the distinction is visible.
+
 ## Redaction config review checklist (CG-10.3, I10)
 
 `config/redaction.json` is the only thing standing between raw evidence and

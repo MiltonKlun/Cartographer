@@ -19,7 +19,7 @@ import { vaultOrphans, vaultAbsPath } from './vault.js';
 import { isoNow, systemClock, fixedClock, type Clock } from './clock.js';
 import { computeVerdict, loadDecayConfig } from './decay.js';
 import { GitChurnIndex, NullChurnIndex } from './churn.js';
-import { computeHealth, computeStatus, DEFAULT_SLA_HOURS } from './health.js';
+import { computeHealth, computeStatus, healthConfig } from './health.js';
 import { assembleAsk, renderAsk, renderAskWithProse, queueGapQuestion } from './ask.js';
 import { AnthropicRimAdapter, NullRimAdapter, type RimAdapter } from './rim.js';
 import { runDoctor, renderDoctor } from './doctor.js';
@@ -797,8 +797,8 @@ function cmdStatus(args: string[]): void {
   try {
     const clock = clockFrom(values);
     const ctx = { config: loadDecayConfig(), churn: churnFrom(values), clock };
-    const sla = values.sla ? Number(values.sla) : DEFAULT_SLA_HOURS;
-    const report = computeStatus(ledger, ctx, sla);
+    const cfg = healthConfig(values.sla ? { sla_hours: Number(values.sla) } : undefined);
+    const report = computeStatus(ledger, ctx, cfg);
 
     const lines: string[] = [];
     lines.push(`cart status — ${isoNow(clock)}`);
@@ -806,7 +806,11 @@ function cmdStatus(args: string[]): void {
     lines.push('ingestors:');
     if (report.ingestors.length === 0) lines.push('  (none have run yet)');
     for (const i of report.ingestors) {
-      lines.push(`  ${i.ingestor}  last success ${i.lastSuccess}  ${i.withinSla ? 'OK' : `STALE (${Math.floor(i.staleHours)}h > ${sla}h SLA)`}`);
+      const status =
+        i.state === 'fresh' ? 'OK'
+        : i.state === 'inactive' ? `inactive (not counted against health; quiet ${Math.floor(i.staleHours)}h)`
+        : `STALE (${Math.floor(i.staleHours)}h > ${cfg.sla_hours}h SLA)`;
+      lines.push(`  ${i.ingestor}  last success ${i.lastSuccess}  ${status}`);
     }
     const c = report.counts;
     lines.push(`records: ${c.behaviors} behaviors (${c.confirmed} confirmed) · ${c.evidence} evidence (${c.quarantined} quarantined) · ${c.questionsOpen} open questions · ${c.receipts} receipts`);
