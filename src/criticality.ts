@@ -9,35 +9,46 @@ interface DomainRule {
   keywords: RegExp;
 }
 
+// Each rule is built from two lists (H4.3):
+//   words — complete words, matched with BOTH boundaries (`\bpay\b`), so
+//           short tokens don't prefix-match ("payload", "Taxi", "author",
+//           "Cartesian" must NOT trigger red/high).
+//   stems — deliberate prefixes, matched with a leading boundary only
+//           (`\binvoic`), to catch inflections (invoice/invoicing). Every
+//           stem is listed explicitly so the prefix-matching is intentional,
+//           never an accident.
 // Order matters: first match wins, red domains listed first.
+function rule(criticality: Criticality, words: string[], stems: string[] = []): DomainRule {
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const alts = [...words.map((w) => `${esc(w)}\\b`), ...stems.map((s) => esc(s))];
+  return { criticality, keywords: new RegExp(`\\b(?:${alts.join('|')})`, 'i') };
+}
+
 const DOMAIN_RULES: DomainRule[] = [
-  {
-    criticality: 'red',
-    keywords:
-      /\b(payment|pay|charge|refund|invoic|billing|price|pricing|coupon|discount|tax|currency|money|wallet|checkout|purchase|subscri)/i,
-  },
-  {
-    criticality: 'red',
-    keywords:
-      /\b(permission|role|auth|authoriz|authentic|login|logout|password|credential|session|token|admin|privileg|access[- ]?control|rbac|acl|owner|tenant)/i,
-  },
-  {
-    criticality: 'red',
-    keywords: /\b(security|secret|encrypt|csrf|xss|sql[- ]?inject|sanitiz|vulnerab|exploit)/i,
-  },
-  {
-    criticality: 'red',
-    keywords: /\b(complian|gdpr|hipaa|pci|audit|consent|retention|privacy|pii)/i,
-  },
-  {
-    criticality: 'red',
-    keywords:
-      /\b(delete|destroy|purge|wipe|corrupt|integrity|migration|backup|restore|data[- ]?loss|overwrite|bulk[- ]?(delete|update|remove))/i,
-  },
-  {
-    criticality: 'high',
-    keywords: /\b(checkout|cart|order|export|import|upload|download|submit|save|publish|deploy)/i,
-  },
+  // money
+  rule('red',
+    ['payment', 'pay', 'charge', 'refund', 'billing', 'price', 'pricing', 'coupon', 'discount', 'tax', 'currency', 'money', 'wallet', 'checkout', 'purchase'],
+    ['invoic', 'subscri']),
+  // permissions / roles / auth. `auth` is a WORD (so "author" is not a match);
+  // authoriz/authentic are stems for the inflections.
+  rule('red',
+    ['permission', 'role', 'login', 'logout', 'password', 'credential', 'session', 'token', 'admin', 'rbac', 'acl', 'owner', 'tenant', 'access control', 'access-control', 'auth'],
+    ['authoriz', 'authentic', 'privileg']),
+  // security
+  rule('red',
+    ['security', 'secret', 'csrf', 'xss', 'sql inject', 'sql-inject', 'exploit'],
+    ['encrypt', 'sanitiz', 'vulnerab']),
+  // compliance
+  rule('red',
+    ['gdpr', 'hipaa', 'pci', 'audit', 'consent', 'retention', 'privacy', 'pii'],
+    ['complian']),
+  // data integrity
+  rule('red',
+    ['delete', 'destroy', 'purge', 'wipe', 'integrity', 'migration', 'backup', 'restore', 'data loss', 'data-loss', 'overwrite'],
+    ['corrupt', 'bulk']),
+  // high (non-red but consequential flows)
+  rule('high',
+    ['checkout', 'cart', 'order', 'export', 'import', 'upload', 'download', 'submit', 'save', 'publish', 'deploy']),
 ];
 
 export interface CriticalityGuess {

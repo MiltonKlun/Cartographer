@@ -36,3 +36,41 @@ test('normal default: no domain keyword', () => {
 test('guess is deterministic and case-insensitive', () => {
   assert.deepEqual(guessCriticality('PAYMENT fails'), guessCriticality('payment fails'));
 });
+
+// ---- H4.3: word boundaries — short tokens must not prefix-match ----
+
+test('H4.3: "payload" is not money (was red via "pay")', () => {
+  const g = guessCriticality('Parses the response payload correctly');
+  assert.equal(g.criticality, 'normal', `payload should be normal, matched: ${g.matched}`);
+});
+
+test('H4.3: "Taxi" is not money (was red via "tax")', () => {
+  const g = guessCriticality('Taxi fare screen renders');
+  assert.equal(g.criticality, 'normal', `Taxi should be normal, matched: ${g.matched}`);
+});
+
+test('H4.3: real "tax" and "payment" still classify red', () => {
+  assert.equal(guessCriticality('Tax is applied at checkout').criticality, 'red');
+  assert.equal(guessCriticality('Payment succeeds with a saved card').criticality, 'red');
+});
+
+test('H4.3: "author" is not auth (was red via "auth")', () => {
+  const g = guessCriticality('The author byline renders on the post');
+  assert.equal(g.criticality, 'normal', `author should be normal, matched: ${g.matched}`);
+});
+
+test('H4.3: real auth words still classify red', () => {
+  assert.equal(guessCriticality('authorization header is validated').criticality, 'red');
+  assert.equal(guessCriticality('authentication rejects a bad token').criticality, 'red');
+  assert.equal(guessCriticality('auth flow redirects to login').criticality, 'red');
+});
+
+test('H4.3: "Cartesian" / "Cartographer" are not the high "cart" flow', () => {
+  assert.notEqual(guessCriticality('Cartesian grid renders').criticality, 'high');
+  assert.notEqual(guessCriticality('Cartographer maps the coverage').criticality, 'high');
+});
+
+test('H4.3: deliberate stems still catch inflections (invoice, subscription)', () => {
+  assert.equal(guessCriticality('invoice total is correct').criticality, 'red');
+  assert.equal(guessCriticality('subscription renews monthly').criticality, 'red');
+});

@@ -76,3 +76,23 @@ export class GitDiff implements DiffPort {
 export function diffFromText(text: string): DiffSummary {
   return parseNumstat(text);
 }
+
+/**
+ * Resolve a `cart pr <ref>` argument to a git ref `git diff` understands (H4.1):
+ *   - a range (contains `..`)           → passed through unchanged
+ *   - a bare PR number (`/^\d+$/`)      → error (git cannot diff a number)
+ *   - anything else (branch/SHA/base)   → `<ref>...HEAD` (merge-base: what the
+ *                                          PR changed since diverging from ref)
+ */
+export function resolvePrRef(ref: string): { gitRef: string } | { error: string } {
+  if (ref.includes('..')) return { gitRef: ref };
+  if (/^\d+$/.test(ref)) {
+    return {
+      error:
+        `"${ref}" looks like a PR number — git cannot diff a number. Pass a base ` +
+        `branch/SHA (e.g. main), a range (main...HEAD), or --diff <file> ` +
+        `(capture one with: gh pr diff ${ref} > pr.diff).`,
+    };
+  }
+  return { gitRef: `${ref}...HEAD` };
+}

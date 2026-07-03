@@ -39,7 +39,7 @@ import { runHeal, renderHealOutcome, type HealPorts, type RerunResult } from './
 import { patchViolations } from './guardrails.js';
 import { runEval, renderEvalReport, type GoldenSet } from './eval.js';
 import { shouldDecline } from './decline.js';
-import { GitDiff, diffFromText } from './diff.js';
+import { GitDiff, diffFromText, resolvePrRef } from './diff.js';
 import { assembleRiskNote, renderRiskNote, queueGaps } from './pr.js';
 import { clusterFailures, renderTriage } from './triage.js';
 import { failuresFromPlaywright, failuresFromJunit } from './triage-parse.js';
@@ -380,8 +380,11 @@ function cmdPr(args: string[]): void {
   if (values.diff) {
     diff = diffFromText(readFileSync(values.diff, 'utf8'));
   } else if (values.repo) {
-    // ref may be a range (main...HEAD) or a single ref we diff against HEAD's base
-    diff = new GitDiff(values.repo).diff(ref.includes('..') ? ref : `${ref}`);
+    // Resolve <ref> to something git diff understands; a bare PR number is
+    // refused with actionable guidance instead of a raw "unknown revision".
+    const resolved = resolvePrRef(ref);
+    if ('error' in resolved) fail(resolved.error);
+    diff = new GitDiff(values.repo).diff(resolved.gitRef);
   } else {
     fail('cart pr needs --repo <dir> (to run git diff) or --diff <file> (a captured diff)');
   }

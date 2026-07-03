@@ -168,47 +168,37 @@ via real `bin/cart.mjs status`).
 Goal: `cart pr` does what its comment claims; the criticality guesser stops
 flagging "payload" and "Taxi" as money.
 
-- [ ] H4.1 **`cmdPr` single-ref handling** (`src/cli.ts:378–387`). Current
-      code passes a bare ref straight to `git diff` (`git diff 412` ⇒
-      "unknown revision") while the comment claims base-diffing. Change the
-      no-`..` branch:
-      - contains `..` ⇒ pass through unchanged;
-      - matches `/^\d+$/` ⇒ `fail()` with:
-        `"NNN" looks like a PR number — git cannot diff a number. Pass a base
-        branch/SHA (e.g. main), a range (main...HEAD), or --diff <file>
-        (capture one with: gh pr diff NNN > pr.diff)`;
-      - otherwise ⇒ diff `` `${ref}...HEAD` `` (merge-base semantics: what
-        changed on HEAD since diverging from `ref` — the PR meaning).
-      - [ ] Rewrite the line-383 comment to describe the real behavior.
-- [ ] H4.2 **Tests.** Build a real throwaway repo (pattern:
-      `src/test/integration/churn.test.ts`): commit on `main`, branch, commit
-      a test-file change, and assert single-ref `main` from the branch HEAD
-      yields the branch's changed files. E2e (or fail-capturing) test: bare
-      `412` exits non-zero with the guidance message.
-- [ ] H4.3 **Criticality word boundaries** (`src/criticality.ts`,
-      `DOMAIN_RULES`). Verified false positives: "payload" → red (matched
-      `pay`), "Taxi" → red (matched `tax`); also `cart` prefix-matches
-      "Cartesian"/"Cartographer" in the `high` rule and `auth` prefix-matches
-      "author". Rule to apply: every alternation token that is a **complete
-      word** gets a trailing `\b` (`pay\b`, `tax\b`, `cart\b`, `auth\b`,
-      `acl\b`, `pci\b`, `pii\b`, …); deliberate stems keep prefix-matching
-      and get listed in a comment above the rule naming them as stems
-      (`invoic`, `subscri`, `authoriz`, `authentic`, `privileg`, `complian`,
-      `sanitiz`, `vulnerab`, `encrypt`, …). First-match-wins order unchanged.
-      - [ ] Regression tests (unit, `criticality.test.ts`):
-            "Parses the response payload correctly" ⇒ `normal`;
-            "Taxi fare screen renders" ⇒ `normal`;
-            "Tax is applied at checkout" ⇒ `red`;
-            "Payment succeeds with a saved card" ⇒ `red`;
-            "The author byline renders" ⇒ `normal`;
-            "Cartesian grid renders" ⇒ not `high` via `cart`.
-- [ ] H4.4 **Re-measure on real data:** re-run the bootstrap over the vendored
-      got fixtures; record the red/high count delta vs the V1 numbers in the
-      demo.
+- [x] H4.1 **`cmdPr` single-ref handling.** Extracted a pure `resolvePrRef`
+      into `src/diff.ts` (unit-testable): `..`-range ⇒ pass through; `/^\d+$/`
+      ⇒ actionable error (git cannot diff a PR number; suggests base ref,
+      range, or `gh pr diff N > pr.diff`); else ⇒ `${ref}...HEAD` (merge-base).
+      `cmdPr` calls it and `fail()`s on the error; the misleading comment is
+      gone.
+- [x] H4.2 **Tests.** Unit tests on `resolvePrRef` (range / base→...HEAD /
+      bare-number-refused). Driven end-to-end against a real throwaway repo:
+      `cart pr <base> --repo` produced a risk note over the branch diff
+      (`+1/−1 in src/records/**`); bare `cart pr 412 --repo` exited 1 with the
+      guidance (the old code produced `fatal: ambiguous argument '412'`).
+- [x] H4.3 **Criticality word boundaries** (`src/criticality.ts`). Rebuilt
+      `DOMAIN_RULES` from a `rule(words, stems)` helper: complete words get
+      both boundaries (`\bpay\b`), deliberate stems (invoic/subscri/authoriz/
+      authentic/privileg/complian/encrypt/sanitiz/vulnerab/corrupt/bulk) keep
+      leading-boundary prefix matching. `auth` is a word (so "author" ≠ auth).
+      - [x] Regression tests: payload⇒normal, Taxi⇒normal, author⇒normal,
+            Cartesian/Cartographer⇒not high; Tax/Payment/auth/authorization/
+            authentication⇒red; invoice/subscription stems⇒red. All 10
+            original red/high/normal cases still pass.
+- [x] H4.4 **Re-measured on the got fixtures.** Honest finding: the 2-file /
+      55-proposal got set produces **0 red under both old and new** regex — it
+      contains no "payload"/"Taxi"/"author"-type leading tokens, so there is no
+      delta on this corpus. The fix is validated by the targeted unit cases,
+      not by got. Recorded in the demo.
 
-**Demo:** `docs/demos/h4-cli-classifier.md` — the `git diff 412` failure on
-HEAD~1 vs the new message; the classifier before/after table; got-fixture
-delta.
+**Demo:** `docs/demos/h4-cli-classifier.md` — the `git diff 412` failure vs the
+new message; the classifier before/after cases; the honest zero got-delta.
+
+**Done 2026-07-02** (283 tests green; `cart pr` bare-number-refused and
+base-ref paths driven against a real repo).
 
 ## Phase H5 — Publication: LICENSE + GitHub + first real CI run (review C2, C3)
 

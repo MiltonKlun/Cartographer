@@ -1,7 +1,7 @@
 // CG-5.1 — diff parsing: numstat lines, binary files, new-file detection.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseNumstat, diffFromText } from '../../diff.js';
+import { parseNumstat, diffFromText, resolvePrRef } from '../../diff.js';
 
 test('parses numstat lines into added/deleted/path', () => {
   const d = parseNumstat('182\t40\tsrc/records/delete.ts\n12\t3\tsrc/auth/roles.ts');
@@ -34,4 +34,26 @@ test('windows backslash paths normalize to forward slashes', () => {
 test('ignores non-numstat noise lines', () => {
   const d = parseNumstat('diff --git a/x b/x\n10\t2\tx.ts\nindex abc..def');
   assert.equal(d.files.length, 1);
+});
+
+// ---- H4.1: cart pr ref resolution ----
+
+test('H4.1: a range ref is passed through unchanged', () => {
+  const r = resolvePrRef('main...HEAD');
+  assert.deepEqual(r, { gitRef: 'main...HEAD' });
+  assert.deepEqual(resolvePrRef('v1..v2'), { gitRef: 'v1..v2' });
+});
+
+test('H4.1: a base branch/SHA becomes <ref>...HEAD (merge-base semantics)', () => {
+  assert.deepEqual(resolvePrRef('main'), { gitRef: 'main...HEAD' });
+  assert.deepEqual(resolvePrRef('a1b2c3d'), { gitRef: 'a1b2c3d...HEAD' });
+});
+
+test('H4.1: a bare PR number is refused with actionable guidance (not passed to git)', () => {
+  const r = resolvePrRef('412');
+  assert.ok('error' in r, 'a bare number must error, not become a git ref');
+  if ('error' in r) {
+    assert.match(r.error, /looks like a PR number/);
+    assert.match(r.error, /gh pr diff 412/); // the actionable capture command
+  }
 });
