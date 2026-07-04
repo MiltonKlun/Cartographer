@@ -1,4 +1,6 @@
-# Cartographer — design kit v0.1
+# Cartographer
+
+<!-- CI badge activated in H5.5 once the first Actions run is green -->
 
 > **The map, not the pipeline.** Cartographer is an AI QA assistant built
 > around a living model of the product under test — the **behavior ledger** —
@@ -36,6 +38,7 @@ cart doctor — environment readiness
   ✓ node:sqlite: available
   ✓ git: git version 2.51.0
   ✓ vault: writable (./vault)
+  ✓ heal: no interrupted heal
   ✓ config: decay.json + redaction.json valid
 
 READY — you can `cart init` and start.
@@ -54,11 +57,13 @@ node bin/cart.mjs ask "do we cache responses?"
 #   BHV-0002 "Cacheable responses are cached"  ASSERTED  F=0.00  …  [BHV-0002]
 ```
 
-`ASSERTED` means *confirmed as intended, but not yet evidenced* — wire
-`cart ingest playwright <report.json>` into CI and the verdicts become
-`VERIFIED` with real freshness. From there: `cart pr <ref>`, `cart brief`,
-`cart triage <run>`. Add `cart ask … --prose` (needs `ANTHROPIC_API_KEY`) for
-an LLM summary over the cited rows.
+Until you confirm a proposal in the interview, `ask` honestly answers
+`UNKNOWN` and badges the matching proposals as unconfirmed — a cold map does
+not pretend (I3). Once confirmed, `ASSERTED` means *confirmed as intended, but
+not yet evidenced* — wire `cart ingest playwright <report.json>` into CI and
+the verdicts become `VERIFIED` with real freshness. From there: `cart pr
+<ref>`, `cart brief`, `cart triage <run>`. Add `cart ask … --prose` (needs
+`ANTHROPIC_API_KEY`) for an LLM summary over the cited rows.
 
 **Should you adopt it at all?** Read [`docs/adoption.md`](docs/adoption.md)
 first — it's honest about when Cartographer is the wrong tool (no CI, one-off
@@ -83,41 +88,27 @@ work, you want per-person metrics).
 - The NEVER list and the anti-surveillance clause (no per-person metrics)
   cannot be loosened by configuration or by any executing agent.
 
-*Status: Phases 0–2 complete (2026-06-10). Phase 0: enforcement primitives —
-schemas + AJV validator, append-only ledger, claims renderer (I1/I2),
-autonomy gateway (I4/I5/I7), deterministic `cart export`. Phase 1: evidence
-ingestion — content-addressed vault, non-optional redaction stage (I10),
-idempotent Playwright/JUnit ingestors, deterministic linking. Phase 2: decay
-engine (the only verdict constructor, I2), git churn index, `cart status` +
-degraded-health banners (I6). Phase 3: `cart ask` — query API verbs,
-minimum-viable-map rule, rows-only rim (the system is now genuinely usable).
-Phase 4: bootstrap tooling — `cart bootstrap import` (one unconfirmed
-behavior per test), red-domain criticality guesser, `cart interview` batch
-confirm/edit/merge/discard. Phase 5: `cart pr` risk notes — diff → at-risk
-behaviors ranked by criticality×(1−F), new files → queued gap questions,
-PROPOSE-by-default comment posting, and a retro-validation gate (3/3
-historical incidents flagged). Phase 6: `cart triage` — failure clustering by
-signature, deterministic product/brittleness/environment classifier (LLM
-residue labeled `inference`), and the `quarantine.json` non-blocking lane
-(entry = receipted ACT, never edits test source, 7-day expiry escalation).
-Phase 7: `cart brief` (one-screen morning brief — overnight verdict
-transitions via snapshot diff, decayed-red, quarantine expiries, top
-questions, health footer) + `cart interview` single-question flow (the answer
-is the approval, I3). Phase 8: ride-along sessions (`cart session
-start|note|stop`, silent until stop — I8) + the ET-Kit session-sheet importer
-(`cart ingest session`, the decision-0001 seam: BUG/ISSUE→evidence,
-QUESTION→Q, IDEA→proposal, evidence redacted before vaulting). Phase 9:
-selector heal — `guardrails.ts` (one pure `patchViolations`, the §10/I5
-source of truth) + the self-evidencing heal flow (`cart heal`: guardrails →
-apply → re-run → green evidence in receipt, else auto-revert + demote to
-PROPOSE, I12). Phase 10: evaluation + calibration + hardening — the eval
-harness (`cart eval`: claim-citation audit, golden ask set, triage precision,
-decline rule I9), the decay-calibration procedure (`docs/decisions/0002`,
-priors kept), operations/backup/restore + redaction-review checklist
-(`docs/operations.md`), and the adoption-honesty doc (`docs/adoption.md`).
+## Status
 
-**All 11 phases (CG-0 → CG-10) are complete.** 216 tests; zero runtime
-dependencies beyond AJV; every invariant enforced at a code chokepoint.
-Demos: `docs/demos/phase-0.md … phase-10.md`.
-The companion ET-Kit (exploratory testing) lives in a separate folder and
-feeds `ingest:session` from Phase 8 on — see `docs/decisions/0001`.*
+**All 11 build phases (CG-0 → CG-10) are complete**, followed by a validation
++ activation roadmap (ROADMAP.md, V1–V5) and a critical-review hardening pass
+(HARDENING-PLAN.md, in progress). The deterministic core (schemas + AJV,
+append-only ledger, claims renderer, autonomy gateway, decay engine,
+guardrails, redaction) is enforced at code chokepoints; the seven surfaces
+(`ask`, `pr`, `brief`, `triage`, `status`, `session`, `heal`) all run; the
+LLM rim (`--prose`) is wired rows-only over the core.
+
+- **283 tests** (unit / integration / e2e), zero runtime dependencies beyond
+  AJV. `npm run check` is the full gate (typecheck + lint + tests + schemas).
+- Demos per phase in `docs/demos/` (`phase-0.md … phase-10.md`, `v1…v5`,
+  `h1…`).
+- The companion ET-Kit (exploratory testing) lives in a separate folder and
+  feeds `ingest:session` from Phase 8 on — see `docs/decisions/0001`.
+
+## Credits
+
+Cartographer itself is MIT-licensed (see [`LICENSE`](LICENSE)). The
+`testdata/real/` fixtures are unmodified test files vendored from the
+MIT-licensed [sindresorhus/got](https://github.com/sindresorhus/got) for
+real-repo validation — attribution and license in
+[`testdata/real/README.md`](testdata/real/README.md).

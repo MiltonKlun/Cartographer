@@ -2,6 +2,7 @@
   "name": "cartographer",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "QA behavior ledger — the map, not the pipeline",
   "type": "module",
   "engines": {
