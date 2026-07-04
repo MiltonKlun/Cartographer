@@ -1,6 +1,6 @@
 # Cartographer
 
-<!-- CI badge activated in H5.5 once the first Actions run is green -->
+[![ci](https://github.com/MiltonKlun/Cartographer/actions/workflows/ci.yml/badge.svg)](https://github.com/MiltonKlun/Cartographer/actions/workflows/ci.yml)
 
 > **The map, not the pipeline.** Cartographer is an AI QA assistant built
 > around a living model of the product under test — the **behavior ledger** —

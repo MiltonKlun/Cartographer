@@ -206,37 +206,31 @@ Goal: the repo becomes the public portfolio artifact it is meant to be, and
 the CI workflow — written blind in V2, never executed — runs on a real
 Ubuntu runner and comes back green.
 
-- [ ] H5.1 **LICENSE.** MIT, `Copyright (c) 2026 Milton Klun`. Add
-      `"license": "MIT"` to `package.json` (keep `"private": true` — this is
-      not an npm package; it prevents accidental publish). Add a one-line
-      credits note in the README pointing at `testdata/real/README.md` (the
-      vendored `got` files are MIT-attributed there already).
-- [ ] H5.2 **README truth pass.** H1–H4 changed `ask` output and interview
-      flow is about to change (H6): verify every command transcript in the
-      README quickstart against actual current output and re-capture where
-      stale. Do **not** rewrite dated files in `docs/demos/` — they are
-      historical records. Add a CI badge slot (activated in H5.5).
-- [ ] H5.3 **First push.** `git branch -m master main`; `git remote add
-      origin https://github.com/MiltonKlun/Cartographer.git`; verify the tree
-      is clean and no real secrets exist anywhere (`testdata` redaction
-      fixtures contain deliberately fake AWS-style keys — confirm they are
-      obviously fake; if GitHub secret-scanning flags them, note it in the
-      demo as expected). Then `git push -u origin main`.
-      *Pushing publishes the repo — the user has named this repo as the
-      destination, but confirm with them immediately before the first push if
-      anything about the state differs from this plan.*
-- [ ] H5.4 **Make CI actually green.** Watch the first Actions run (all three
-      jobs: `check`, `guardrails-gate`, `dogfood`). Expect Ubuntu breakage
-      candidates: glob quoting in package.json scripts, path separators,
-      `spawnSync` of `bin/cart.mjs`, the `node:sqlite` experimental warning
-      on stderr. Fix each with the minimal change + a note in the demo;
-      iterate until green. **This phase's DoD includes a green run on
-      GitHub**, not just a local `npm run check`.
-- [ ] H5.5 **Badge + demo.** Turn on the README CI badge with the real
-      workflow URL; the demo links the green run.
+- [x] H5.1 **LICENSE.** MIT, `Copyright (c) 2026 Milton Klun`; `"license":
+      "MIT"` added to `package.json` (`"private": true` kept). README Credits
+      section attributes the vendored got fixtures + Cartographer's MIT.
+- [x] H5.2 **README truth pass.** Dropped the stale `design kit v0.1` title
+      and `Phases 0–2 / 216 tests` footer (now 283); added the `heal` line to
+      the doctor sample; made the `ask` example honest (UNKNOWN-until-confirmed,
+      I3); added the CI-badge slot. `docs/demos/` left untouched (historical).
+- [x] H5.3 **First push.** `master → main`; remote added; tree verified clean
+      (no tracked db/vault/dist); secret scan found only the canonical fake
+      `AKIAIOSFODNN7EXAMPLE` + `hunter2` in redaction fixtures (deliberately
+      fake). Remote had an identical placeholder LICENSE on an unrelated
+      `Initial commit` → rebased onto it (no force-push); pushed
+      `46c6ec8..aa11cee`.
+- [x] H5.4 **CI green on a real runner.** First `ubuntu-latest` run
+      (28699137372, sha aa11cee) came back `success` — `check` + `dogfood`
+      both green, **no Ubuntu fixes needed** (the test glob is Node-expanded,
+      no Windows paths in src). Verified via the public Actions API.
+- [x] H5.5 **Badge + demo.** README CI badge points at the real
+      `ci.yml/badge.svg` (verified HTTP 200); demo links the green run.
 
-**Demo:** `docs/demos/h5-publication.md` — link to the green Actions run, the
-list of Ubuntu fixes (or "none needed"), the LICENSE decision line.
+**Demo:** `docs/demos/h5-publication.md` — link to the green Actions run
+(none-needed on Ubuntu), the LICENSE line, the rebase-onto-placeholder note.
+
+**Done 2026-07-04** (repo public; CI green on real runner; no CD by design —
+CLI, not a service).
 
 ## Phase H6 — Interview inline confirm (review C1 — the biggest UX gap)
 
