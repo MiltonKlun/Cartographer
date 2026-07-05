@@ -238,38 +238,34 @@ Goal: confirming 50 bootstrap proposals is one command and one keystroke per
 proposal, as SPEC §7.5 intends — not one hand-typed CLI invocation each, not
 hand-authored JSON.
 
-- [ ] H6.1 **Testable driver, IO injected.** New `src/interview-live.ts`:
-      `runInterviewLoop(ledger, io, actor, clock)` where
-      `io = { ask: (prompt: string) => Promise<string>, say: (line: string) =>
-      void }`. Loop over `pendingProposals(ledger)`; for each, `say` a
-      proposal card (id, statement, area, criticality, created_by) and `ask`
-      `[y]es confirm / [e]dit / [m]erge into / [d]iscard / [s]kip / [q]uit`:
-      - `y` ⇒ confirm as `actor`;
-      - `e` ⇒ ask for a replacement statement (empty input = keep), confirm;
-      - `m` ⇒ ask for the survivor `BHV-…` id; validate it exists, is active
-        and confirmed; invalid ⇒ re-prompt once, then skip this proposal;
-      - `d` ⇒ ask for an optional reason, discard;
-      - `s` or empty ⇒ skip; `q` ⇒ stop.
-      **Each decision is applied immediately** via the existing
-      `applyInterview` with a single-item list (quitting mid-way must lose
-      nothing already answered). Return a summary
-      `{ confirmed, merged, discarded, skipped, remaining }`.
-- [ ] H6.2 **CLI wiring.** `cart interview --live --as <actor>` using
-      `node:readline/promises` over stdin/stdout (works on piped stdin too —
-      no TTY gate). Existing single-question and batch modes untouched.
-- [ ] H6.3 **Tests.**
-      - [ ] Integration: scripted `io` (a queue of canned answers) proving
-            every branch: y/e/m (valid + invalid survivor)/d/s/q, and the
-            immediate-apply semantics (answer one, quit, assert it
-            persisted).
-      - [ ] E2e: spawn `bin/cart.mjs interview --live --as ana` with
-            `"y\nq\n"` piped to stdin against a temp DB seeded with 2
-            proposals; assert exit 0, 1 confirmed, 1 still pending.
-- [ ] H6.4 **Docs.** README quickstart's confirm step becomes
-      `cart interview --live`; note the SPEC §7.5 parity in the demo.
+- [x] H6.1 **Testable driver, IO injected.** `src/interview-live.ts`:
+      `runInterviewLoop(ledger, io, actor, clock)`, injected
+      `InterviewIO = { ask, say }`. Card per proposal + the y/e/m/d/s/q menu.
+      y confirm · e edit-then-confirm (empty=keep) · m merge (invalid/
+      unconfirmed target ⇒ refused + skipped — chose skip over "re-prompt
+      once", simpler, user re-runs `--live`) · d discard · s/empty skip · q
+      quit. Each decision applied immediately via `applyInterview` (durable on
+      quit). Returns `{ confirmed, merged, discarded, skipped, remaining }`.
+- [x] H6.2 **CLI wiring.** `cart interview --live --as <actor>` over stdin.
+      Note: `readline/promises` `question()` hangs after piped-EOF, so the CLI
+      drives off the `line` event with a queue that returns a quit sentinel on
+      close (works for TTY and pipes). Single-question/batch modes untouched;
+      `--batch` output now points at `--live`.
+- [x] H6.3 **Tests.**
+      - [x] Integration (`interview-live.test.ts`, 8): every branch
+            (y/e/m valid + invalid/d/s/q/unrecognized) + durable-quit
+            persistence.
+      - [x] E2e (`cli.test.ts`, +2): spawn `interview --live --as eval` with
+            `y\nq` piped over a got-bootstrapped ledger ⇒ exit 0, 1 confirmed,
+            rest pending; `--as` required ⇒ exit 1.
+- [x] H6.4 **Docs.** README quickstart confirm step is `cart interview --live`;
+      SPEC §7.5 parity noted in the demo.
 
 **Demo:** `docs/demos/h6-interview-live.md` — a real transcript confirming a
 got-fixture bootstrap batch, with the summary line.
+
+**Done 2026-07-04** (293 tests green; the loop driven end-to-end over real
+piped stdin against `bin/cart.mjs`).
 
 ## Phase H7 — Deep-link correctness: merge relink + rim guard v2 (review A6 + A4)
 

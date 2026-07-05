@@ -32,6 +32,17 @@ function cart(db: string, ...args: string[]): RunResult {
   return { status: r.status ?? -1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
 }
 
+/** Like `cart`, but feeds `input` on stdin (for the live interview loop). */
+function cartStdin(db: string, input: string, ...args: string[]): RunResult {
+  const r = spawnSync('node', [BIN, ...args], {
+    encoding: 'utf8',
+    input,
+    env: { ...process.env, CART_DB: db, CART_VAULT: join(mkdtempSync(join(tmpdir(), 'cart-cli-v-')), 'vault') },
+    windowsHide: true,
+  });
+  return { status: r.status ?? -1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
+}
+
 test('init creates a ledger and exits 0', () => {
   const db = freshDb();
   const r = cart(db, 'init');
@@ -162,4 +173,39 @@ test('V4.3: cart doctor reports readiness and exits 0 on a healthy env', () => {
   assert.match(r.stdout, /environment readiness/);
   assert.match(r.stdout, /node:|node:sqlite/);
   assert.match(r.stdout, /READY/);
+});
+
+// H6 — the live interview loop over real piped stdin. Bootstrap the got
+// fixtures into unconfirmed proposals, then confirm one and quit; assert the
+// confirm persisted and the rest are still pending (durable immediate-apply).
+const REPO = fileURLToPath(new URL('../../../testdata/real', import.meta.url));
+
+test('H6: cart interview --live confirms one via piped stdin, then quits', () => {
+  const db = freshDb();
+  cart(db, 'init');
+  const boot = cart(db, 'bootstrap', 'import', REPO, '--apply', '--actor', 'eval');
+  assert.equal(boot.status, 0);
+  assert.match(boot.stdout, /behavior proposal/);
+
+  // pipe: confirm the first proposal (y), then quit (q)
+  const r = cartStdin(db, 'y\nq\n', 'interview', '--live', '--as', 'eval');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /✓ BHV-0001 confirmed/);
+  assert.match(r.stdout, /1 confirmed/);
+  assert.match(r.stdout, /still pending/);
+
+  // exactly one is confirmed now; the rest remain proposals
+  const list = cart(db, 'behavior', 'list');
+  assert.match(list.stdout, /BHV-0001/);
+  // a second live run still finds pending proposals (durable, not all-or-nothing)
+  const again = cartStdin(db, 'q\n', 'interview', '--live', '--as', 'eval');
+  assert.match(again.stdout, /proposal\(s\) awaiting your judgment/);
+});
+
+test('H6: cart interview --live without --as exits 1 (attribution required, I3)', () => {
+  const db = freshDb();
+  cart(db, 'init');
+  const r = cartStdin(db, '', 'interview', '--live');
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /requires --as/);
 });

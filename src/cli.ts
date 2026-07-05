@@ -5,6 +5,7 @@
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
 import { join, dirname as dirnameOf } from 'node:path';
 import { parseArgs } from 'node:util';
+import { createInterface } from 'node:readline/promises';
 import { Ledger } from './db.js';
 import { AutonomyGateway } from './autonomy.js';
 import { QueryApi } from './query.js';
@@ -32,6 +33,7 @@ import {
   type InterviewItem,
   type QuestionAnswer,
 } from './interview.js';
+import { runInterviewLoop, type InterviewIO } from './interview-live.js';
 import { assembleBrief, renderBrief } from './brief.js';
 import { startSession, noteSession, stopSession, renderStop, openSessionFor } from './session.js';
 import { parseSessionSheet, importSessionSheet } from './ingest-session.js';
@@ -95,6 +97,7 @@ const USAGE = `cart — Cartographer behavior ledger
   cart interview answer <Q-id> --person P --new-behavior "S" --area A
   cart interview answer <Q-id> --person P --confirm <BHV-id>
   cart interview answer <Q-id> --person P --dismiss [--reason R]
+  cart interview --live --as <you>             confirm proposals one keystroke each (y/e/m/d/s/q — §7.5)
   cart interview --batch N                     list N pending proposals to confirm/edit/merge/discard
   cart interview --apply <answers.json> --person P
                                               apply interview decisions (writes confirmed_by — I3)
@@ -654,11 +657,13 @@ function cmdBrief(args: string[]): void {
   }
 }
 
-function cmdInterview(args: string[]): void {
+async function cmdInterview(args: string[]): Promise<void> {
   const { values, positionals } = parseArgs({
     args,
     options: {
       db: { type: 'string' },
+      live: { type: 'boolean', default: false },
+      as: { type: 'string' },
       batch: { type: 'string' },
       apply: { type: 'string' },
       person: { type: 'string' },
@@ -674,6 +679,38 @@ function cmdInterview(args: string[]): void {
   });
   const ledger = new Ledger(dbPath(values));
   try {
+    // live loop (H6, SPEC §7.5): one keystroke per proposal over stdin.
+    // We drive off the readline `line` event with a small queue rather than
+    // sequential `rl.question(...)` — under piped (non-TTY) stdin the promise
+    // API leaves later questions unresolved after EOF; the queue instead
+    // hands back a quit sentinel once the stream closes, so a short script
+    // (`y\nq`) or a truncated pipe ends the loop cleanly.
+    if (values.live) {
+      const actor = values.as ?? values.person;
+      if (!actor) fail('cart interview --live requires --as <you> (attribution, I3/I11)');
+      const rl = createInterface({ input: process.stdin });
+      const lines: string[] = [];
+      let waiting: ((v: string) => void) | undefined;
+      let closed = false;
+      rl.on('line', (l) => (waiting ? (waiting(l), (waiting = undefined)) : lines.push(l)));
+      rl.on('close', () => { closed = true; if (waiting) { waiting('q'); waiting = undefined; } });
+      const io: InterviewIO = {
+        ask: (prompt) => {
+          process.stdout.write(prompt);
+          if (lines.length > 0) return Promise.resolve(lines.shift()!);
+          if (closed) return Promise.resolve('q'); // EOF ⇒ quit
+          return new Promise<string>((resolve) => { waiting = resolve; });
+        },
+        say: (line) => console.log(line),
+      };
+      try {
+        await runInterviewLoop(ledger, io, actor, clockFrom(values));
+      } finally {
+        rl.close();
+      }
+      return;
+    }
+
     // single-question answer (CG-7.2)
     if (positionals[0] === 'answer') {
       const qId = positionals[1];
@@ -731,9 +768,9 @@ function cmdInterview(args: string[]): void {
         console.log(`  ${b.id}  [${b.criticality}] ${b.statement}`);
         console.log(`        area: ${b.area} · from: ${testId}`);
       }
-      console.log('\nWrite decisions to an answers.json file, then:');
-      console.log('  cart interview --apply answers.json --person <you>');
-      console.log('Each item: {"behaviorId":"BHV-xxxx","decision":{"kind":"confirm"|"merge"|"discard", …}}');
+      console.log('\nConfirm them one keystroke each:');
+      console.log('  cart interview --live --as <you>');
+      console.log('or write decisions to an answers.json file and: cart interview --apply answers.json --person <you>');
       return;
     }
 
@@ -1102,7 +1139,7 @@ export async function main(argv: string[]): Promise<void> {
       case 'brief':
         return cmdBrief(argv.slice(1));
       case 'interview':
-        return cmdInterview(argv.slice(1));
+        return await cmdInterview(argv.slice(1));
       case 'verdict':
         return cmdVerdict(argv.slice(1));
       case 'status':

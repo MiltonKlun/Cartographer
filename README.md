@@ -52,7 +52,7 @@ sample from the `got` library):
 node bin/cart.mjs init                                   # create ledger.db
 node bin/cart.mjs bootstrap import <repo> --apply --actor you
 #   → scanned 2 test file(s) → 55 behavior proposal(s) (all unconfirmed)
-node bin/cart.mjs interview --batch 20                   # confirm/edit/merge the proposals
+node bin/cart.mjs interview --live --as you              # confirm/edit/merge, one keystroke each
 node bin/cart.mjs ask "do we cache responses?"
 #   BHV-0002 "Cacheable responses are cached"  ASSERTED  F=0.00  …  [BHV-0002]
 ```
