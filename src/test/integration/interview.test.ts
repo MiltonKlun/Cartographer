@@ -4,9 +4,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Ledger } from '../../db.js';
 import { applyInterview, pendingProposals, nextQuestion, answerQuestion } from '../../interview.js';
+import { QueryApi } from '../../query.js';
 import { fixedClock } from '../../clock.js';
-import { tempLedger } from '../helpers/ledger.js';
-import { makeProposal, makeQuestion } from '../helpers/factories.js';
+import { tempLedger, testCtx } from '../helpers/ledger.js';
+import { makeProposal, makeQuestion, makeEvidence } from '../helpers/factories.js';
 import type { Behavior, Question } from '../../types.js';
 
 const clock = fixedClock('2026-06-11T09:00:00Z');
@@ -68,6 +69,50 @@ test('merge folds verified_by into the target and retires the duplicate (I11)', 
 
   const dup = ledger.getBehavior('BHV-0002');
   assert.equal(dup?.status, 'retired', 'merged proposal is retired, not deleted (I11)');
+  assert.equal(dup?.merged_into, 'BHV-0001', 'the retired dup records its survivor (H7)');
+});
+
+test('H7.3: the survivor inherits the merged duplicate\'s evidence in its verdict', () => {
+  const ledger = seeded();
+  applyInterview(ledger, 'ana', [{ behaviorId: 'BHV-0001', decision: { kind: 'confirm' } }], clock);
+  // two supporting runs land on the DUPLICATE before the merge
+  ledger.insertEvidence(makeEvidence({ id: 'EV-0001', behavior_ids: ['BHV-0002'], observed_at: '2026-06-10T00:00:00Z' }), 'ingest:playwright-json@1');
+  ledger.insertEvidence(makeEvidence({ id: 'EV-0002', behavior_ids: ['BHV-0002'], observed_at: '2026-06-11T03:00:00Z' }), 'ingest:playwright-json@1');
+
+  const api = new QueryApi(ledger, testCtx(clock));
+  // before the merge the survivor has no evidence of its own → ASSERTED
+  assert.equal(api.verdict('BHV-0001').state, 'ASSERTED');
+
+  applyInterview(ledger, 'ana', [{ behaviorId: 'BHV-0002', decision: { kind: 'merge', into: 'BHV-0001' } }], clock);
+
+  const v = api.verdict('BHV-0001');
+  assert.equal(v.state, 'VERIFIED', 'the survivor now sees the duplicate\'s supporting runs');
+  assert.equal(v.newest_evidence_id, 'EV-0002', 'and picks up the newest of them');
+});
+
+test('H7.3: a merge chain (A→B→C) resolves evidence to the final survivor; a cycle terminates', () => {
+  const ledger = tempLedger(clock);
+  // C is the confirmed survivor; A and B are duplicate proposals chained into it
+  ledger.insertBehavior(makeProposal({ id: 'BHV-0001', statement: 'Duplicate A of B' }), 'import');
+  ledger.insertBehavior(makeProposal({ id: 'BHV-0002', statement: 'Duplicate B of C' }), 'import');
+  ledger.insertBehavior(makeProposal({ id: 'BHV-0003', statement: 'The survivor behavior C' }), 'import');
+  // evidence sits on the far end of the chain (A)
+  ledger.insertEvidence(makeEvidence({ id: 'EV-0001', behavior_ids: ['BHV-0001'], observed_at: '2026-06-10T00:00:00Z' }), 'ingest:playwright-json@1');
+  // confirm the final survivor C, then chain the unconfirmed dups A→B→C
+  // (applyInterview refuses to merge a CONFIRMED behavior, so the intermediate
+  // B stays a proposal until it too is merged away).
+  applyInterview(ledger, 'ana', [{ behaviorId: 'BHV-0003', decision: { kind: 'confirm' } }], clock);
+  applyInterview(ledger, 'ana', [{ behaviorId: 'BHV-0001', decision: { kind: 'merge', into: 'BHV-0002' } }], clock);
+  applyInterview(ledger, 'ana', [{ behaviorId: 'BHV-0002', decision: { kind: 'merge', into: 'BHV-0003' } }], clock);
+
+  const api = new QueryApi(ledger, testCtx(clock));
+  // C resolves the 2-hop chain A→B→C and sees A's evidence
+  assert.equal(api.verdict('BHV-0003').state, 'VERIFIED', 'C inherits A\'s evidence through the chain');
+
+  // a hand-crafted cycle must not hang: point C back at A directly
+  ledger.updateBehavior('BHV-0003', (b) => ({ ...b, merged_into: 'BHV-0001' }), 'ana');
+  const v = api.verdict('BHV-0003'); // must terminate with a sane verdict
+  assert.ok(['VERIFIED', 'ASSERTED', 'STALE', 'UNKNOWN', 'FAILING'].includes(v.state));
 });
 
 test('discard retires the proposal with a reason (I11: history kept)', () => {

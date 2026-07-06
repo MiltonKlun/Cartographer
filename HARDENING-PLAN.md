@@ -272,46 +272,34 @@ piped stdin against `bin/cart.mjs`).
 Goal: a merged behavior inherits its duplicate's evidence history, and the
 prose guard rejects verdict-upgrading prose, not just unknown ids.
 
-- [ ] H7.1 **Record the merge on the retired side.** Add optional
-      `merged_into?: string` to the `Behavior` type (`src/types.ts`) and the
-      behavior JSON schema (optional — no migration needed; records are JSON
-      blobs). In `applyInterview`'s merge case (`src/interview.ts` ~line 75,
-      where `status: 'retired'` and the notes suffix are set), also set
-      `merged_into: item.decision.into`.
-- [ ] H7.2 **Alias-aware verdicts.** Where verdict computation filters
-      evidence by `behavior_ids.includes(b.id)` (in `src/decay.ts`
-      `computeVerdict`, called from `QueryApi.verdict`): accept evidence
-      citing any behavior whose `merged_into` chain resolves to `b.id`.
-      Implementation shape: `QueryApi.verdict` precomputes the alias id set
-      (scan behaviors for `merged_into`, follow transitively, cycle-guarded,
-      ≤10 hops) and passes it to `computeVerdict` as an optional
-      `aliasIds?: string[]` — keep `computeVerdict` pure.
-- [ ] H7.3 **Tests.** Merge a duplicate carrying 2 supporting evidence
-      records into an evidence-less survivor ⇒ survivor's verdict is
-      `VERIFIED` and `newest_evidence_id` is the duplicate's newest; a 2-hop
-      chain (A merged into B, B into C) resolves to C; a hand-crafted cycle
-      does not hang (assert it terminates with a sane verdict).
-- [ ] H7.4 **Rim guard v2** (`src/rim.ts`). Verified blind spot:
-      `proseCitesOnlyKnownIds` checks ids only, so "BHV-0001 is fully
-      verified" over a STALE row passes. Add
-      `proseContradictsVerdicts(prose, rows): boolean`: for each state-claim
-      pattern that matches the prose —
-      `verified: /\b(verified|passing|passes|green)\b/i`,
-      `violated: /\b(violated|failing|fails|broken)\b/i`,
-      `stale: /\bstale\b/i`, plus `/\bsafe to ship\b/i` ⇒ `verified` —
-      require ≥1 row whose `verdict.state` carries that state; otherwise the
-      prose is contradictory. Wire into `renderAskWithProse`
-      (`src/ask.ts:121`) alongside the id guard: contradiction ⇒ discard
-      prose, return rows-only.
-      - [ ] Tests: STALE-only rows + "fully verified" prose ⇒ discarded;
-            VERIFIED row + "verified" prose ⇒ kept; prose with no state words
-            ⇒ kept; **pin the known limitation**: "is not verified" over
-            STALE rows is conservatively discarded too (word-level, no
-            negation parsing) — that is the safe direction since rows are
-            always shown; say so in a comment.
+- [x] H7.1 **Record the merge on the retired side.** `merged_into?: string`
+      added to the `Behavior` type + behavior schema (optional, no migration).
+      `applyInterview`'s merge case sets it on the retired duplicate.
+- [x] H7.2 **Alias-aware verdicts.** `computeVerdict(…, aliasIds?)` +
+      `conclusiveEvidence` matches the behavior id OR any alias.
+      `mergedAliasesOf(behaviors, id)` (pure, transitive, cycle-guarded ≤10
+      hops) feeds it. **Consistency fix beyond the plan:** the CLI surfaces
+      `cart verdict` and `cart brief` called `computeVerdict` directly and so
+      still showed ASSERTED — caught by driving the real binary; routed both
+      through the resolver (verdict via QueryApi, the single accessor I2).
+- [x] H7.3 **Tests.** Survivor inherits the duplicate's newest evidence ⇒
+      VERIFIED, newest = the duplicate's; 2-hop chain A→B→C resolves to C;
+      hand-crafted cycle terminates with a sane verdict. Driven end-to-end via
+      real `cart verdict` (ASSERTED → VERIFIED F=0.96 after merge).
+- [x] H7.4 **Rim guard v2** (`src/rim.ts`). `proseContradictsVerdicts` maps
+      state-claim words → asserted state; a state no row carries ⇒ discard.
+      Wired into `renderAskWithProse` alongside the id guard.
+      - [x] Tests: STALE + "fully verified" ⇒ discarded (the review probe);
+            VERIFIED + "verified" ⇒ kept; no state word ⇒ kept; mixed rows
+            satisfied by any; **pinned limitation**: "not verified" over STALE
+            conservatively discarded (word-level, no negation parsing) — safe
+            since rows are always shown.
 
 **Demo:** `docs/demos/h7-deep-links.md` — merged-behavior verdict before/after;
 the verdict-upgrade probe from the review now discarded.
+
+**Done 2026-07-06** (301 tests green; merge-relink driven via real
+`cart verdict`; rim guard unit-proven incl. the review probe).
 
 ## Phase H8 — Dogfood linkage: JUnit classname ↔ test_id (review C4b)
 

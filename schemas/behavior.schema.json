@@ -43,6 +43,7 @@
     },
     "created_by": { "enum": ["ingest:ci", "interview", "session", "import", "manual"] },
     "status": { "enum": ["active", "retired"] },
+    "merged_into": { "type": "string", "pattern": "^BHV-[0-9]{4,}$" },
     "notes": { "type": "string" }
   },
   "definitions": {

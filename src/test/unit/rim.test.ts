@@ -7,12 +7,13 @@ import {
   NullRimAdapter,
   AnthropicRimAdapter,
   proseCitesOnlyKnownIds,
+  proseContradictsVerdicts,
   toRimRows,
 } from '../../rim.js';
 import type { AskRow } from '../../ask.js';
-import type { Behavior, Verdict } from '../../types.js';
+import type { Behavior, Verdict, VerdictState } from '../../types.js';
 
-function row(id: string, evId: string | null, over: Partial<Behavior> = {}): AskRow {
+function row(id: string, evId: string | null, over: Partial<Behavior> = {}, state: VerdictState = 'VERIFIED'): AskRow {
   const behavior: Behavior = {
     id,
     statement: 'Coupon applies before tax',
@@ -24,7 +25,7 @@ function row(id: string, evId: string | null, over: Partial<Behavior> = {}): Ask
     status: 'active',
     ...over,
   };
-  const verdict: Verdict = { state: 'VERIFIED', freshness: 0.84, computed_at: '2026-06-11T00:00:00Z', newest_evidence_id: evId };
+  const verdict: Verdict = { state, freshness: 0.84, computed_at: '2026-06-11T00:00:00Z', newest_evidence_id: evId };
   return {
     behavior,
     verdict,
@@ -58,6 +59,40 @@ test('guard handles all id prefixes', () => {
   const rows = [row('BHV-0001', 'EV-0001')];
   assert.equal(proseCitesOnlyKnownIds('See Q-0001', rows), false);
   assert.equal(proseCitesOnlyKnownIds('See ACT-0001', rows), false);
+});
+
+// ---- verdict-contradiction guard (H7.4, I2) ----
+
+test('H7.4: "fully verified" over a STALE row is a contradiction (the review probe)', () => {
+  const rows = [row('BHV-0001', 'EV-0001', {}, 'STALE')];
+  assert.equal(proseContradictsVerdicts('BHV-0001 is fully verified and safe to ship.', rows), true);
+});
+
+test('H7.4: "verified" over a VERIFIED row is NOT a contradiction', () => {
+  const rows = [row('BHV-0001', 'EV-0001', {}, 'VERIFIED')];
+  assert.equal(proseContradictsVerdicts('BHV-0001 is verified.', rows), false);
+});
+
+test('H7.4: prose with no state words is never a contradiction', () => {
+  const rows = [row('BHV-0001', 'EV-0001', {}, 'STALE')];
+  assert.equal(proseContradictsVerdicts('Coupons are covered by one behavior.', rows), false);
+});
+
+test('H7.4: "failing" claim requires a FAILING row present', () => {
+  assert.equal(proseContradictsVerdicts('This is failing.', [row('BHV-0001', 'EV-0001', {}, 'VERIFIED')]), true);
+  assert.equal(proseContradictsVerdicts('This is failing.', [row('BHV-0001', 'EV-0001', {}, 'FAILING')]), false);
+});
+
+test('H7.4: a state claim is satisfied if ANY row carries that state (mixed rows)', () => {
+  const rows = [row('BHV-0001', 'EV-0001', {}, 'FAILING'), row('BHV-0002', 'EV-0002', {}, 'VERIFIED')];
+  assert.equal(proseContradictsVerdicts('BHV-0001 is failing though BHV-0002 is verified.', rows), false);
+});
+
+test('H7.4: conservative — a negated claim ("not verified") over STALE is still discarded', () => {
+  // documented limitation: word-level, no negation parsing; safe because rows
+  // are always shown, so we drop an occasional true prose rather than risk a lie
+  const rows = [row('BHV-0001', 'EV-0001', {}, 'STALE')];
+  assert.equal(proseContradictsVerdicts('BHV-0001 is not verified.', rows), true);
 });
 
 // ---- row projection (ledger-free) ----

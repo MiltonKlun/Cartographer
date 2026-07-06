@@ -28,12 +28,15 @@ export function loadDecayConfig(path?: string): DecayConfig {
 
 const MS_PER_DAY = 86_400_000;
 
-/** Conclusive (supports/violates), non-superseded evidence for this behavior. */
-function conclusiveEvidence(behavior: Behavior, evidence: Evidence[]): Evidence[] {
+/** Conclusive (supports/violates), non-superseded evidence for this behavior.
+ *  `aliasIds` are behaviors merged into this one (H7) — their evidence counts
+ *  toward the survivor's verdict. The behavior's own id is always included. */
+function conclusiveEvidence(behavior: Behavior, evidence: Evidence[], aliasIds?: string[]): Evidence[] {
+  const ids = new Set<string>([behavior.id, ...(aliasIds ?? [])]);
   const superseded = new Set(evidence.map((e) => e.supersedes).filter(Boolean));
   return evidence.filter(
     (e) =>
-      e.behavior_ids.includes(behavior.id) &&
+      e.behavior_ids.some((bid) => ids.has(bid)) &&
       !superseded.has(e.id) &&
       (e.outcome === 'supports' || e.outcome === 'violates'),
   );
@@ -78,9 +81,10 @@ export function computeVerdict(
   behavior: Behavior,
   evidence: Evidence[],
   ctx: VerdictContext,
+  aliasIds?: string[],
 ): Verdict {
   const computed_at = isoNow(ctx.clock);
-  const relevant = conclusiveEvidence(behavior, evidence);
+  const relevant = conclusiveEvidence(behavior, evidence, aliasIds);
   const newestAny = newest(relevant);
 
   if (!behavior.confirmed_by) {

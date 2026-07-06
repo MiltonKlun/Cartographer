@@ -8,7 +8,7 @@ import type { QueryApi } from './query.js';
 import type { Ledger } from './db.js';
 import { isoNow, type Clock } from './clock.js';
 import { renderClaims, type Claim, type Health } from './renderer.js';
-import { type RimAdapter, proseCitesOnlyKnownIds } from './rim.js';
+import { type RimAdapter, proseCitesOnlyKnownIds, proseContradictsVerdicts } from './rim.js';
 import type { Behavior, Question, Verdict } from './types.js';
 
 export interface AskRow {
@@ -124,6 +124,11 @@ export async function renderAskWithProse(result: AskResult, rim: RimAdapter): Pr
   if (!prose) return rowsOnly;
   if (!proseCitesOnlyKnownIds(prose, result.rows)) {
     // the LLM cited something the core didn't produce — discard the prose (I1)
+    return rowsOnly;
+  }
+  if (proseContradictsVerdicts(prose, result.rows)) {
+    // the LLM asserted a verdict state no row carries (e.g. "verified" over a
+    // STALE row) — discard; the rows remain the source of truth (H7.4/I2)
     return rowsOnly;
   }
   return `${prose}\n\n${rowsOnly}`;

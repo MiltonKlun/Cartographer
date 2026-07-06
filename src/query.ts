@@ -9,6 +9,30 @@ import { globMatch } from './linking.js';
 import type { Health } from './renderer.js';
 import type { Behavior, Evidence, Question, Verdict } from './types.js';
 
+/** Ids of behaviors merged (transitively) into `survivorId` — their evidence
+ *  counts toward the survivor's verdict (H7). Cycle-guarded, ≤10 hops. Pure,
+ *  so every verdict surface (ask, verdict, brief) resolves aliases the same. */
+export function mergedAliasesOf(all: Behavior[], survivorId: string): string[] {
+  const mergedInto = new Map<string, string>(); // retired id → survivor id
+  for (const b of all) if (b.merged_into) mergedInto.set(b.id, b.merged_into);
+
+  const aliases: string[] = [];
+  const seen = new Set<string>([survivorId]);
+  let frontier = [survivorId];
+  for (let hop = 0; hop < 10 && frontier.length > 0; hop++) {
+    const next: string[] = [];
+    for (const [from, into] of mergedInto) {
+      if (frontier.includes(into) && !seen.has(from)) {
+        seen.add(from);
+        aliases.push(from);
+        next.push(from);
+      }
+    }
+    frontier = next;
+  }
+  return aliases;
+}
+
 /**
  * Fields that identify people. Names appear solely for attribution of
  * decisions; grouping or aggregating by them is refused (I7, NEVER-tier).
@@ -107,7 +131,13 @@ export class QueryApi {
   verdict(behaviorId: string): Verdict {
     const behavior = this.ledger.getBehavior(behaviorId);
     if (!behavior) throw new Error(`no such behavior: ${behaviorId}`);
-    return computeVerdict(behavior, this.ledger.allRecords('evidence') as Evidence[], this.ctx);
+    const evidence = this.ledger.allRecords('evidence') as Evidence[];
+    const aliasIds = this.mergedAliases(behaviorId);
+    return computeVerdict(behavior, evidence, this.ctx, aliasIds);
+  }
+
+  private mergedAliases(survivorId: string): string[] {
+    return mergedAliasesOf(this.ledger.allRecords('behaviors') as Behavior[], survivorId);
   }
 
   evidenceFor(behaviorId: string, limit = 10): Evidence[] {

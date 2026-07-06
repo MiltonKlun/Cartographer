@@ -6,7 +6,7 @@
 // assembled from the query API + decay engine, never invented.
 import { type Clock, isoNow } from './clock.js';
 import type { Ledger } from './db.js';
-import type { QueryApi } from './query.js';
+import { type QueryApi, mergedAliasesOf } from './query.js';
 import { computeVerdict, type VerdictContext } from './decay.js';
 import { expiredEntries, loadQuarantine, type QuarantineEntry } from './quarantine.js';
 import type { Behavior, Evidence, Question, VerdictState } from './types.js';
@@ -53,13 +53,15 @@ export function assembleBrief(
   opts: AssembleBriefOptions,
 ): BriefData {
   const at = isoNow(ctx.clock);
-  const behaviors = (ledger.allRecords('behaviors') as Behavior[]).filter((b) => b.status === 'active');
+  const allBehaviors = ledger.allRecords('behaviors') as Behavior[];
+  const behaviors = allBehaviors.filter((b) => b.status === 'active');
   const evidence = ledger.allRecords('evidence') as Evidence[];
 
-  // current verdicts
+  // current verdicts — resolve merge aliases so a survivor inherits its
+  // duplicates' evidence, consistent with cart ask / verdict (H7).
   const current = new Map<string, { state: VerdictState; freshness: number }>();
   for (const b of behaviors) {
-    const v = computeVerdict(b, evidence, ctx);
+    const v = computeVerdict(b, evidence, ctx, mergedAliasesOf(allBehaviors, b.id));
     current.set(b.id, { state: v.state, freshness: v.freshness });
   }
 

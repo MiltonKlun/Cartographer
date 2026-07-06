@@ -45,6 +45,35 @@ export function proseCitesOnlyKnownIds(prose: string, rows: AskRow[]): boolean {
   return true;
 }
 
+/**
+ * Verdict-contradiction guard (H7.4, I1/I2). The id guard alone lets a lie
+ * like "BHV-0001 is fully verified" pass over a STALE row — every id is known,
+ * but the *state claim* is a fabrication. This guard maps state-claim words in
+ * the prose to the verdict state they assert; if the prose asserts a state
+ * that NO row actually carries, the prose is contradictory and must be
+ * discarded (rows stay the source of truth).
+ *
+ * Word-level, not an NLI checker (matches the project's regex-guard idiom).
+ * Deliberately conservative: negations ("not verified") are also treated as a
+ * verified-claim and discarded — safe, because the rows are always shown
+ * anyway, so we lose an occasional true prose rather than risk a false one.
+ */
+const STATE_CLAIMS: { re: RegExp; state: string }[] = [
+  { re: /\b(?:verified|passing|passes|green|safe to ship|safe to merge)\b/i, state: 'VERIFIED' },
+  { re: /\b(?:failing|fails|broken|violated|regressed)\b/i, state: 'FAILING' },
+  { re: /\bstale\b/i, state: 'STALE' },
+];
+
+export function proseContradictsVerdicts(prose: string, rows: AskRow[]): boolean {
+  const present = new Set<string>(rows.map((r) => r.verdict.state));
+  for (const { re, state } of STATE_CLAIMS) {
+    if (re.test(prose) && !present.has(state)) {
+      return true; // prose asserts a state no row carries → contradiction
+    }
+  }
+  return false;
+}
+
 /** A compact, ledger-free projection of a row — all the LLM ever sees. */
 interface RimRowView {
   behavior_id: string;

@@ -17,6 +17,9 @@ export interface Behavior {
   confirmed_by?: { person: string; at: string };
   created_by: 'ingest:ci' | 'interview' | 'session' | 'import' | 'manual';
   status: 'active' | 'retired';
+  /** Set when this behavior was merged into a survivor (H7). The survivor
+   *  inherits this behavior's evidence via the alias chain in verdicts. */
+  merged_into?: string;
   notes?: string;
 }
 

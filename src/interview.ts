@@ -70,12 +70,15 @@ export function applyInterview(
             },
             person,
           );
+          const into = item.decision.into;
           ledger.updateBehavior(
             item.behaviorId,
-            (b) => ({ ...b, status: 'retired', notes: `${b.notes ?? ''} · merged into ${item.decision.kind === 'merge' ? item.decision.into : ''}`.trim() }),
+            // record the merge on the retired side so the survivor inherits
+            // this behavior's evidence via the alias chain in verdicts (H7).
+            (b) => ({ ...b, status: 'retired', merged_into: into, notes: `${b.notes ?? ''} · merged into ${into}`.trim() }),
             person,
           );
-          outcome.merged.push({ from: item.behaviorId, into: item.decision.into });
+          outcome.merged.push({ from: item.behaviorId, into });
           break;
         }
         case 'discard': {

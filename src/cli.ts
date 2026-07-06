@@ -809,7 +809,9 @@ function cmdVerdict(args: string[]): void {
     if (!behavior) fail(`no such behavior: ${id}`);
     const clock = clockFrom(values);
     const ctx = { config: loadDecayConfig(), churn: churnFrom(values), clock };
-    const verdict = computeVerdict(behavior, ledger.allRecords('evidence') as Evidence[], ctx);
+    // via QueryApi so merge aliases are resolved (H7) — the single verdict
+    // accessor (I2), consistent with cart ask.
+    const verdict = new QueryApi(ledger, ctx).verdict(id);
     const { health } = computeHealth(ledger, clock);
     const citations = [behavior.id, ...(verdict.newest_evidence_id ? [verdict.newest_evidence_id] : [])];
     const claim: Claim = {
