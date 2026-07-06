@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Representative node:test JUnit output (H8). Note classname="test" always,
+     and no file attribute — the only identity is the test `name` (title).
+     The last case carries a template-literal title bootstrap can't resolve
+     (`red domain: "${statement}"`), so it stays unlinked — an honest sample. -->
+<testsuites>
+	<testcase name="mapped area: cited rows with verdicts; FAILING leads" time="0.014276" classname="test"/>
+	<testcase name="H1.1: a discarded proposal never resurfaces in search or ask (I3)" time="0.002100" classname="test"/>
+	<testcase name="parses numstat lines into added/deleted/path" time="0.000410" classname="test">
+		<failure type="testCodeFailure" message="example failure detail"/>
+	</testcase>
+	<testcase name="red domain: &amp;quot;${statement}&amp;quot;" time="0.000188" classname="test"/>
+</testsuites>

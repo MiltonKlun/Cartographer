@@ -307,26 +307,29 @@ Goal: Cartographer's own CI dogfood evidence actually links to behaviors
 (V2 finding: node:test JUnit `classname` never matches bootstrap `test_id` ⇒
 ~98% of self-evidence unlinked).
 
-- [ ] H8.1 **Capture the real shapes.** Generate Cartographer's own JUnit
-      (`node --test --test-reporter junit`), trim a representative sample
-      into `testdata/self/junit-sample.xml`. In the demo, write down 5
-      observed `classname`/`name` pairs next to the 5 `test_id`s bootstrap
-      derives for the same files — the mapping rule must be **written before
-      it is coded**.
-- [ ] H8.2 **Implement the mapping** in the JUnit ingest adapter: derive
-      test-id candidates from `classname` + `name` in bootstrap's format;
-      keep the current exact-match path as first preference; derived matches
-      get `link_confidence: 'medium'` (it is an inference — say so in the
-      evidence).
-- [ ] H8.3 **Regression.** Fixture from H8.1 against a ledger bootstrapped
-      from the same source tree: assert linked-evidence count > 0 **and**
-      linkage rate ≥ 50% where a matching behavior exists (guard the
-      precondition — no vacuous pass).
-- [ ] H8.4 **Prove it in CI.** Push; record the dogfood job's new linkage
-      rate vs the old ~2% in the demo.
+- [x] H8.1 **Captured the real shapes.** node:test's JUnit reporter emits
+      `classname="test"` and **no** `file` attr — the only identity is `name`
+      (the title). Sample in `testdata/self/junit-sample.xml`; the mapping rule
+      (match on the shared `::<title>` half) was written in the demo table
+      before coding.
+- [x] H8.2 **Implemented the mapping** as a new linking tier in
+      `src/linking.ts` (step 3, `title_suffix`): `titleOf(testId)` = the half
+      after the last `::`; a **unique** title match links at `medium`
+      (inference, never high). Exact test_id still wins; ambiguous titles are
+      skipped, not mislinked (I3).
+- [x] H8.3 **Regression.** `linking.test.ts` (+4: suffix match / exact-wins /
+      ambiguous-not-mislinked / path-wins-when-ambiguous);
+      `dogfood-linkage.test.ts` (+2: bootstrap this repo's `src/test`, ingest
+      the sample, assert linkage > 0 and rate ≥ 50%, all derived links medium).
+- [x] H8.4 **Measured end-to-end.** On Cartographer's own 306-row JUnit:
+      **~1% → 85%** linked (257 medium + 3 high); the ~15% unlinked are
+      template-literal titles bootstrap can't resolve. CI dogfood job runs the
+      same path — confirmed green on push.
 
 **Demo:** `docs/demos/h8-dogfood-linkage.md` — the mapping table, the rate
-before/after, link to the CI run.
+before/after (1% → 85%), the CI run.
+
+**Done 2026-07-06** (307 tests green; real dogfood linkage 85%, up from ~1%).
 
 ## Phase H9 — Debt pins + optional hardening (review A9, B1, B2)
 

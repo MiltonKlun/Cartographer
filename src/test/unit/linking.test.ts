@@ -72,3 +72,51 @@ test('no match → unlinked at low confidence, never a guessed link (I3)', () =>
   const r = linkEvidence([behavior('BHV-0001', { links: { implemented_in: ['src/billing/**'] } })], ref({ file: 'tests/new-feature.spec.ts', testId: 'tests/new-feature.spec.ts::works' }));
   assert.deepEqual(r, { behavior_ids: [], link_confidence: 'low', method: 'none' });
 });
+
+// ---- H8: derived title-suffix match (node:test JUnit has no file identity) ----
+
+// node:test's JUnit reporter emits classname="test", so the junit ingestor
+// builds testId `test::<title>` — the file half is lost. Bootstrap test_ids
+// are `<file>::<title>`, so we match on the shared title half at MEDIUM.
+const junitRef = (title: string): TestRef => ({
+  testId: `test::${title}`,   // classname="test" + name=title (node:test shape)
+  title,
+  annotations: [],
+  file: '',                    // no file attr from node:test junit
+});
+
+test('H8: a node:test junit ref links by title suffix at medium confidence', () => {
+  const b = behavior('BHV-0002', {
+    links: { verified_by: [{ test_id: 'diff.test.ts::parses numstat lines into added/deleted/path', confidence: 'high' }] },
+  });
+  const r = linkEvidence([b], junitRef('parses numstat lines into added/deleted/path'));
+  assert.deepEqual(r, { behavior_ids: ['BHV-0002'], link_confidence: 'medium', method: 'title_suffix' });
+});
+
+test('H8: exact test_id still wins over the derived suffix match', () => {
+  const b = behavior('BHV-0002', {
+    links: { verified_by: [{ test_id: 'test::viewer cannot bulk delete', confidence: 'high' }] },
+  });
+  // ref.testId is `test::viewer cannot bulk delete` — an EXACT match here
+  const r = linkEvidence([b], junitRef('viewer cannot bulk delete'));
+  assert.equal(r.method, 'test_id');
+  assert.equal(r.link_confidence, 'high');
+});
+
+test('H8: an ambiguous title (same name in two files) is NOT mislinked', () => {
+  const b1 = behavior('BHV-0001', { links: { verified_by: [{ test_id: 'a.test.ts::works', confidence: 'high' }] } });
+  const b2 = behavior('BHV-0002', { links: { verified_by: [{ test_id: 'b.test.ts::works', confidence: 'high' }] } });
+  const r = linkEvidence([b1, b2], junitRef('works'));
+  // two candidates share the title → skip the inference, fall through to none
+  assert.equal(r.method, 'none');
+  assert.deepEqual(r.behavior_ids, []);
+});
+
+test('H8: title suffix does not override a path-overlap when it is ambiguous', () => {
+  // ambiguous suffix, but one behavior also matches by path → path wins (medium)
+  const b1 = behavior('BHV-0001', { links: { verified_by: [{ test_id: 'a.test.ts::works', confidence: 'high' }] } });
+  const b2 = behavior('BHV-0002', { links: { verified_by: [{ test_id: 'b.test.ts::works', confidence: 'high' }], implemented_in: ['tests/x/**'] } });
+  const r = linkEvidence([b1, b2], { testId: 'test::works', title: 'works', annotations: [], file: 'tests/x/y.spec.ts' });
+  assert.equal(r.method, 'path_overlap');
+  assert.deepEqual(r.behavior_ids, ['BHV-0002']);
+});
