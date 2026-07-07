@@ -2,12 +2,25 @@
 // Question/Session/Receipt records, so a schema change touches one file
 // instead of a dozen inline literals. Every factory returns a valid record
 // (passes assertValid); pass overrides to vary one field.
-import type { Behavior, Evidence, Question, Receipt, Session } from '../../types.js';
+import type { Behavior, Evidence, Question, Receipt, Session, Verdict, VerdictData } from '../../types.js';
 
 let seq = 0;
 /** Monotonic id helper for tests that need several distinct ids. */
 export function nextSeq(): number {
   return ++seq;
+}
+
+/** Build a branded `Verdict` in tests (H9.2). Production code gets its brand
+ *  only from the decay engine's `mintVerdict`; tests get it here — the single
+ *  test-side cast, so the brand stays meaningful everywhere else. */
+export function makeVerdict(data: Partial<VerdictData> = {}): Verdict {
+  return {
+    state: 'VERIFIED',
+    freshness: 0.84,
+    computed_at: '2026-06-11T00:00:00Z',
+    newest_evidence_id: 'EV-0001',
+    ...data,
+  } as Verdict;
 }
 
 export function makeBehavior(over: Partial<Behavior> = {}): Behavior {

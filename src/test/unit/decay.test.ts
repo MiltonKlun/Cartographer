@@ -175,3 +175,13 @@ test('every verdict carries all four I2 fields', () => {
   assert.deepEqual(Object.keys(v).sort(), ['computed_at', 'freshness', 'newest_evidence_id', 'state']);
   assert.equal(v.computed_at, '2026-06-10T00:00:00Z');
 });
+
+test('H9.2: the Verdict brand is compile-time only — the value round-trips through JSON', () => {
+  // The brand blocks *construction* of a Verdict outside the decay engine at
+  // compile time; at runtime a Verdict is a plain record with exactly the four
+  // fields, so it serializes unchanged (no phantom key leaks into JSONL export
+  // or the rim projection).
+  const v = computeVerdict(behavior(), [evidence()], ctx());
+  assert.deepEqual(JSON.parse(JSON.stringify(v)), v);
+  assert.equal(Object.getOwnPropertySymbols(v).length, 0, 'no runtime brand symbol on the value');
+});

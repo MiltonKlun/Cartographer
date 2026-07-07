@@ -336,29 +336,31 @@ before/after (1% → 85%), the CI run.
 Goal: the accepted limitations are written down where an adopter will look,
 and the one cheap compile-time hardening is attempted.
 
-- [ ] H9.1 **Single-writer note** (`docs/operations.md`): `nextId` reads
-      `MAX(id)` and inserts in separate transactions (`src/db.ts`), so two
-      concurrent `cart` processes on one DB can collide — the failure is a
-      loud PK violation, not corruption. Multi-writer is unsupported; run one
-      `cart` at a time per ledger. No code change.
-- [ ] H9.2 **(OPTIONAL — attempt, abandon freely)** Branded `Verdict`:
-      phantom-brand the type (`type Verdict = VerdictData & { readonly
-      [brand]?: never }` pattern, type-level only — must remain a plain JSON
-      record at runtime; the AskRow JSON-round-trip test must still pass)
-      with the only mint in `computeVerdict` (`src/decay.ts`). Purpose: code
-      outside decay.ts cannot hand-construct a `Verdict` without a visible
-      cast. If it fights `exactOptionalPropertyTypes` or turns into >1h of
-      churn, drop it and note why in the demo — this is hardening, not a
-      feature.
-- [ ] H9.3 **Scaling posture pin** (`docs/decisions/0003-defer-query-scaling.md`):
-      ~31 `allRecords(` call sites do full-table `JSON.parse` per command;
-      fine at current scale; revisit when `cart ask` exceeds ~500 ms wall
-      clock or evidence exceeds ~50k rows; the known fix is SQL-side
-      filtering behind the existing Ledger API. Decision: deferred until real
-      data demands it (consistent with SPEC §15 and decision 0002).
+- [x] H9.1 **Single-writer note** (`docs/operations.md`): added "One writer
+      per ledger" — `nextId` reads `MAX(id)` then inserts separately, so
+      concurrent writers on one DB can collide; the failure is a loud PK
+      violation, not corruption. One writer per ledger (CI gets its own DB).
+      No code change.
+- [x] H9.2 **Branded `Verdict` — LANDED.** `Verdict = VerdictData &
+      { readonly [verdictBrand]: typeof verdictBrand }` (required phantom key,
+      unforgeable symbol); the only mint is `mintVerdict` in `src/decay.ts`.
+      Typecheck flagged exactly **two files** constructing a Verdict literal —
+      both tests, zero production code outside decay.ts (the brand proved the
+      "only constructor" claim was already true). Tests mint via `makeVerdict`
+      (factories). Runtime cost none: `H9.2` in `decay.test.ts` pins the JSON
+      round-trip + no runtime symbol; the AskRow round-trip test is untouched.
+      No `exactOptionalPropertyTypes` fight — well inside the abandon rule.
+- [x] H9.3 **Scaling posture pin** — `docs/decisions/0003-defer-query-scaling.md`
+      records: keep the ~31 full-table `allRecords` reads until real data
+      demands otherwise; triggers (`ask`/`brief` > ~500 ms, evidence > ~50k
+      rows, backup pain) and the known fix (SQL-side filtering behind the
+      existing Ledger API — no ORM/cache/second store). Per SPEC §15 +
+      decision 0002.
 
-**Demo:** `docs/demos/h9-debt-pins.md` — the two doc pins; branded-type
-outcome (landed or dropped-with-reason).
+**Demo:** `docs/demos/h9-debt-pins.md` — the two doc pins; branded Verdict
+landed (two-file blast radius, zero runtime cost).
+
+**Done 2026-07-07** (308 tests green; branded Verdict landed cleanly).
 
 ## Phase H10 — Live rim validation `[~]` (review C4a)
 

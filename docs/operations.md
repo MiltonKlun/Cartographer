@@ -12,6 +12,26 @@
 Everything else (`export/`, `quarantine.json`, `config/`) is either derived or
 version-controlled. **Backup = copy those two paths. Restore = copy them back.**
 
+## One writer per ledger (H9.1)
+
+Cartographer is a **single-writer** tool: run one `cart` process at a time
+against a given `ledger.db`. Id allocation reads `MAX(id)` and inserts in
+separate steps (`Ledger.nextId` → `SELECT MAX(...)`, then the record `INSERT`),
+so two `cart` processes writing the same ledger concurrently can pick the same
+next id and collide. The collision is a **loud failure** — the second insert
+hits the primary-key constraint and the command errors out; it is **not**
+silent corruption, and the append-only log is untouched. But it means:
+
+- Don't run a local `cart ingest`/`cart heal` against the same DB that CI's
+  dogfood/ingest job is writing at that moment. Give CI its own ledger (the
+  workflow already uses a `runner.temp` DB), or serialize the writers.
+- A cron export/backup (`cart export`, read-only) is safe alongside a reader,
+  but a second *writer* is not.
+
+This is a deliberate scope choice (SPEC §2 — no server, no queue): the tool
+serves one engineer's map, not a concurrent multi-writer service. If you ever
+need concurrent writers, that is a real design change, not a config flag.
+
 ## Daily export hook (CG-10.3)
 
 `cart export` writes a deterministic JSONL snapshot of the entire ledger,

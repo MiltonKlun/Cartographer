@@ -11,7 +11,8 @@ import {
   toRimRows,
 } from '../../rim.js';
 import type { AskRow } from '../../ask.js';
-import type { Behavior, Verdict, VerdictState } from '../../types.js';
+import type { Behavior, VerdictState } from '../../types.js';
+import { makeVerdict } from '../helpers/factories.js';
 
 function row(id: string, evId: string | null, over: Partial<Behavior> = {}, state: VerdictState = 'VERIFIED'): AskRow {
   const behavior: Behavior = {
@@ -25,7 +26,7 @@ function row(id: string, evId: string | null, over: Partial<Behavior> = {}, stat
     status: 'active',
     ...over,
   };
-  const verdict: Verdict = { state, freshness: 0.84, computed_at: '2026-06-11T00:00:00Z', newest_evidence_id: evId };
+  const verdict = makeVerdict({ state, freshness: 0.84, computed_at: '2026-06-11T00:00:00Z', newest_evidence_id: evId });
   return {
     behavior,
     verdict,

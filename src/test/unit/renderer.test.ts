@@ -4,15 +4,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderClaims, RenderError, type Claim } from '../../renderer.js';
 import type { Verdict } from '../../types.js';
+import { makeVerdict } from '../helpers/factories.js';
 
 const OK = { degraded: false } as const;
 
-const goodVerdict: Verdict = {
+const goodVerdict = makeVerdict({
   state: 'VERIFIED',
   freshness: 0.84,
   computed_at: '2026-06-10T08:00:00Z',
   newest_evidence_id: 'EV-9311',
-};
+});
 
 test('I1: citation-less claim is refused', () => {
   assert.throws(() => renderClaims([{ text: 'coupon stacking is covered' }], OK), RenderError);
@@ -60,7 +61,7 @@ test('I2: verdict without computed_at is rejected', () => {
 });
 
 test('I2: freshness outside [0,1] is rejected', () => {
-  const claim: Claim = { text: 'x', citations: ['BHV-0001'], verdict: { ...goodVerdict, freshness: 1.5 } };
+  const claim: Claim = { text: 'x', citations: ['BHV-0001'], verdict: { ...goodVerdict, freshness: 1.5 } as Verdict };
   assert.throws(() => renderClaims([claim], OK), /freshness/);
 });
 
@@ -68,7 +69,7 @@ test('I2: invalid verdict state is rejected', () => {
   const claim: Claim = {
     text: 'x',
     citations: ['BHV-0001'],
-    verdict: { ...goodVerdict, state: 'PROBABLY_FINE' as Verdict['state'] },
+    verdict: { ...goodVerdict, state: 'PROBABLY_FINE' as Verdict['state'] } as Verdict,
   };
   assert.throws(() => renderClaims([claim], OK), /state/);
 });

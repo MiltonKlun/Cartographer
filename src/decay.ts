@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { type Clock, isoNow } from './clock.js';
 import { configDir } from './paths.js';
 import type { ChurnIndex } from './churn.js';
-import type { Behavior, Confidence, Criticality, Evidence, Verdict } from './types.js';
+import type { Behavior, Confidence, Criticality, Evidence, Verdict, VerdictData } from './types.js';
 
 export interface DecayConfig {
   tau_time_days: Record<Criticality, number>;
@@ -71,6 +71,16 @@ export function freshnessOf(
 }
 
 /**
+ * The single blessed mint for a branded `Verdict` (H9.2). The phantom brand is
+ * type-only, so this is a cast, not a runtime wrapper — the value stays a plain
+ * JSON record. Keeping the cast in exactly one place means no other module can
+ * fabricate a `Verdict` without an equally-visible cast of its own.
+ */
+function mintVerdict(v: VerdictData): Verdict {
+  return v as Verdict;
+}
+
+/**
  * The single verdict constructor. Order of rules:
  *   1. unconfirmed behavior        → UNKNOWN (meaning is human, I3)
  *   2. newest violates > supports  → FAILING (hard rule, ignores freshness)
@@ -88,7 +98,7 @@ export function computeVerdict(
   const newestAny = newest(relevant);
 
   if (!behavior.confirmed_by) {
-    return { state: 'UNKNOWN', freshness: 0, computed_at, newest_evidence_id: newestAny?.id ?? null };
+    return mintVerdict({ state: 'UNKNOWN', freshness: 0, computed_at, newest_evidence_id: newestAny?.id ?? null });
   }
 
   const newestSupports = newest(relevant.filter((e) => e.outcome === 'supports'));
@@ -99,15 +109,15 @@ export function computeVerdict(
     (!newestSupports || newestViolates.observed_at > newestSupports.observed_at)
   ) {
     const freshness = freshnessOf(behavior, newestViolates, ctx);
-    return { state: 'FAILING', freshness, computed_at, newest_evidence_id: newestViolates.id };
+    return mintVerdict({ state: 'FAILING', freshness, computed_at, newest_evidence_id: newestViolates.id });
   }
 
   if (!newestSupports) {
-    return { state: 'ASSERTED', freshness: 0, computed_at, newest_evidence_id: null };
+    return mintVerdict({ state: 'ASSERTED', freshness: 0, computed_at, newest_evidence_id: null });
   }
 
   const freshness = freshnessOf(behavior, newestSupports, ctx);
   const { verified_min, stale_min } = ctx.config.thresholds;
   const state = freshness >= verified_min ? 'VERIFIED' : freshness >= stale_min ? 'STALE' : 'UNKNOWN';
-  return { state, freshness, computed_at, newest_evidence_id: newestSupports.id };
+  return mintVerdict({ state, freshness, computed_at, newest_evidence_id: newestSupports.id });
 }

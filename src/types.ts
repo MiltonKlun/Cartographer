@@ -84,9 +84,25 @@ export type VerdictState = 'VERIFIED' | 'STALE' | 'ASSERTED' | 'UNKNOWN' | 'FAIL
 
 // Verdict objects always carry all four fields; the renderer rejects anything
 // less (I2). From Phase 2 on, the decay engine is the only constructor.
-export interface Verdict {
+//
+// Branding (H9.2): the `[verdictBrand]` phantom is type-only — it never exists
+// at runtime (a Verdict stays a plain JSON record, so it still round-trips
+// through JSON.stringify unchanged). Its purpose is compile-time: code outside
+// the decay engine cannot hand-assemble a value of type `Verdict` from a
+// literal without a visible cast, because the brand key is unforgeable. This
+// makes "the decay engine is the only constructor" a type-checked property,
+// not just a comment. `mintVerdict` (decay.ts) is the single blessed mint.
+declare const verdictBrand: unique symbol;
+
+/** The plain verdict shape — every field the renderer needs (I2). */
+export interface VerdictData {
   state: VerdictState;
   freshness: number;
   computed_at: string;
   newest_evidence_id: string | null;
 }
+
+/** A `VerdictData` that carries the unforgeable brand — mintable only by the
+ *  decay engine's `mintVerdict`. Consumers read it exactly like `VerdictData`;
+ *  the brand only blocks *construction* elsewhere. Erased at runtime. */
+export type Verdict = VerdictData & { readonly [verdictBrand]: typeof verdictBrand };
