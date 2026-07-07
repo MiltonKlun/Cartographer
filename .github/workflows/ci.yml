@@ -72,14 +72,20 @@ jobs:
       - run: npm run build
       - name: run tests → JUnit report
         run: node --test --test-reporter=junit --test-reporter-destination=cart-tests.xml "dist/test/**/*.test.js" || true
-      - name: ingest own results + show status
+      - name: bootstrap own tests, ingest own results, show status + linkage
         env:
           CART_DB: ${{ runner.temp }}/dogfood.db
           CART_VAULT: ${{ runner.temp }}/dogfood-vault
         run: |
           node bin/cart.mjs init
+          # bootstrap this repo's own tests so there are behaviors to link to
+          # (one unconfirmed proposal per test; test_ids are <file>::<title>)
+          node bin/cart.mjs bootstrap import src/test --apply --actor ci
+          # ingest our own JUnit — links via the H8 title-suffix rule
           node bin/cart.mjs ingest junit cart-tests.xml --ref "ci-${{ github.run_number }}"
           node bin/cart.mjs status
+          # report the self-linkage rate (H8: node:test JUnit → behaviors)
+          node -e "const {Ledger}=require('./dist/db.js');const l=new Ledger(process.env.CART_DB);const ev=l.allRecords('evidence');const linked=ev.filter(e=>e.behavior_ids.length>0);console.log('dogfood self-linkage: '+linked.length+'/'+ev.length+' ('+Math.round(100*linked.length/ev.length)+'%)');l.close();"
       - uses: actions/upload-artifact@v4
         with:
           name: dogfood-junit

@@ -7,3 +7,4 @@ ledger.db-shm
 export/
 vault/
 *.tsbuildinfo
+cart-tests.xml

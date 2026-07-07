@@ -81,10 +81,21 @@ guessed.
 
 ## H8.4 — proven in CI
 
-The dogfood job runs this same path unattended on the Ubuntu runner; the run
-for this commit reports the new linkage rate (see the CI run linked from the
-commit). Previously the job ran green but logged ~2% linkage as a known gap;
-now it links the majority of its own evidence.
+The V2 dogfood job ingested JUnit into a *fresh empty* ledger, so it never had
+behaviors to link against — it only proved ingestion ran. H8 fixes that too:
+the dogfood job now **bootstraps this repo's own `src/test` first**, then
+ingests, then prints the self-linkage rate:
+
+```yaml
+- run: |
+    node bin/cart.mjs bootstrap import src/test --apply --actor ci
+    node bin/cart.mjs ingest junit cart-tests.xml --ref "ci-${{ github.run_number }}"
+    node bin/cart.mjs status
+    # → "dogfood self-linkage: 260/306 (85%)"
+```
+
+Verified locally with the exact CI command sequence: `260/306 (85%)`. The
+Ubuntu runner runs the same path unattended and prints the rate in the job log.
 
 ## DoD
 
