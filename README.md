@@ -2,7 +2,7 @@
 
 # Cartographer
 
-**The map, not the pipeline — a QA behavior ledger that answers with evidence, and decays honestly when it can't.**
+**A QA-AI map and behavior ledger that answers with evidence**
 
 [![ci](https://github.com/MiltonKlun/Cartographer/actions/workflows/ci.yml/badge.svg)](https://github.com/MiltonKlun/Cartographer/actions/workflows/ci.yml)
 ![Node](https://img.shields.io/badge/node-%E2%89%A522.13-339933?logo=node.js&logoColor=white)
@@ -269,22 +269,6 @@ Full text in [`CONSTITUTION.md`](CONSTITUTION.md).
 - **[docs/operations.md](docs/operations.md)** — backup, restore, health SLA, redaction review.
 - **[docs/testing.md](docs/testing.md)** — the unit / integration / e2e tiers and the "no vacuous pass" rule.
 - **[skills/cartographer/SKILL.md](skills/cartographer/SKILL.md)** — the runtime operating layer.
-
----
-
-## 📊 Status
-
-All **11 build phases** are complete, followed by a validation + activation
-roadmap ([ROADMAP.md](ROADMAP.md)) and a critical-review hardening pass
-([HARDENING-PLAN.md](HARDENING-PLAN.md)). The core is enforced at chokepoints;
-all seven surfaces run; the LLM rim is wired rows-only over the core.
-
-- ✅ **308 tests** (unit / integration / e2e) — `npm run check` is the full gate
-  (typecheck + lint + tests + schema validation), green on every push.
-- ✅ CI proven on a real Ubuntu runner, with a self-ingesting dogfood job
-  (~85% self-linkage).
-- 🔑 Live LLM rim wired and guarded; one real round-trip validation pending an
-  API key.
 
 ---
 
