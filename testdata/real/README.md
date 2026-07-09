@@ -1,9 +1,8 @@
-# testdata/real/ — real-repo validation fixtures (Phase V1)
+# testdata/real/ — real-repo validation fixtures
 
 These are **real, unmodified test files** vendored from a third-party OSS
-project to validate Cartographer against code it did not author (ROADMAP
-Phase V1 / SPEC §11). They are fixtures, not dependencies — used by
-`bootstrap.test.ts` regressions and the V1 demo.
+project to validate Cartographer against code it did not author (SPEC §11).
+They are fixtures, not dependencies — used by `bootstrap.test.ts` regressions.
 
 - **Source:** [sindresorhus/got](https://github.com/sindresorhus/got),
   files `test/cache.ts` and `test/cookies.ts`, captured 2026-06-15.

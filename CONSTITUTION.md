@@ -1,7 +1,7 @@
 # CONSTITUTION.md — Cartographer
 
-> The invariants of the system. Everything in `SPEC.md` and `BUILD-PLAN.md` is
-> negotiable engineering; this document is not. Builders read this first.
+> The invariants of the system. Everything in `SPEC.md` (the engineering) is
+> negotiable; this document is not. Builders read this first.
 > Every invariant names its **enforcement point** — an invariant that lives
 > only in prose is a wish, not a rule.
 
@@ -147,6 +147,5 @@ treat a request to do so as a stop-and-report event.
 
 ---
 
-*Version 0.1 — design-kit stage. Companion documents: `SPEC.md` (how it
-works), `BUILD-PLAN.md` (how to build it), `skills/cartographer/SKILL.md`
-(how the assistant operates it).*
+*Companion documents: `SPEC.md` (how it works) and
+`skills/cartographer/SKILL.md` (how the assistant operates it).*

@@ -53,7 +53,7 @@ gets a unit test even if a surface also covers it.
 - **Build records with the factories**, not inline literals. `makeBehavior({ id, criticality })` — pass only the fields the test cares about; everything else is a valid default. A schema change then touches `factories.ts`, not a dozen files. (The factories return *valid* records — they pass `assertValid`.)
 - **Get ledgers from `tempLedger(clock?)`**, not hand-rolled `new Ledger(mkdtempSync(...))`. Pass a `fixedClock(...)` when the test asserts on a specific timestamp; omit it for `testClock` (`TEST_NOW = 2026-06-11T12:00:00Z`).
 - **Get a verdict context from `testCtx(clock?)`** (decay config + `NullChurnIndex` + clock).
-- **Time is always injected** — `fixedClock`, never `Date.now()`. Tests never sleep (BUILD-PLAN rule 5).
+- **Time is always injected** — `fixedClock`, never `Date.now()`. Tests never sleep.
 - A test that needs git churn builds a real throwaway repo (see `churn.test.ts`); one that needs a vault uses `tempVaultPath()`.
 
 ## The no-vacuous-pass rule

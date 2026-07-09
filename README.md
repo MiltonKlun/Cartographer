@@ -239,7 +239,7 @@ Full text in [`CONSTITUTION.md`](CONSTITUTION.md).
 | `schemas` | JSON Schema contracts for every record (AJV-validated in CI) |
 | `skills/cartographer` | The operating layer — how the assistant behaves on top of the built system |
 | `config` | `decay.json` (freshness constants) · `redaction.json` · `health.json` |
-| `docs` | Adoption, operations, testing guides · per-phase demos · decision records |
+| `docs` | Adoption, operations, testing guides · decision records |
 | `testdata` | Real-repo fixtures (`got`) + captured reports for offline, deterministic tests |
 | `bin` | `cart.mjs` — the CLI entry point |
 

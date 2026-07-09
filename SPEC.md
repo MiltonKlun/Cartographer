@@ -1,8 +1,8 @@
 # SPEC.md — Cartographer Technical Specification
 
 > The engineering contract. `CONSTITUTION.md` says what must always be true;
-> this document says how. `BUILD-PLAN.md` says in what order. Schemas here are
-> normative; field names are binding for v1.
+> this document says how. Schemas here are normative; field names are binding
+> for v1.
 
 ---
 
@@ -225,8 +225,7 @@ manual_observation, outcome: violates)`; QUESTION → draft `Q` records;
 IDEA → session proposals; referenced evidence files pass through the same
 redaction stage before vaulting. The ET-Kit (user-level skills, separate
 project) is the recommended interactive session front end; Cartographer's
-own `cart session` (§7.6) remains the minimal native capture path. See
-BUILD-PLAN Phase 8 scope note.
+own `cart session` (§7.6) remains the minimal native capture path.
 
 ## 7. Surfaces (contracts + examples)
 
@@ -359,7 +358,7 @@ A blank map helps nobody; a lying map is worse (I6). Sequence:
    index built) → `triage` → `session`.
 5. **Retro-validation:** replay 2–3 historical incident PRs through `cart pr`
    — the note should have flagged the incident's behavior. If not, fix
-   linking before trusting the surface (BUILD-PLAN Phase 5).
+   linking before trusting the surface.
 
 ## 12. Failure and degradation behavior
 
